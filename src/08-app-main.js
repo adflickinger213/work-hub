@@ -1,6 +1,9 @@
 // 08-app-main.js
 // Top-level App component (export default).
 
+// Minimal stub to satisfy <AgentLauncher> usage until the real component lands.
+function AgentLauncher() { return null; }
+
 // ── App Root ──────────────────────────────────────────────────────────────────
 
 // ╔══════════════════════════════════════════════════════════════════════╗

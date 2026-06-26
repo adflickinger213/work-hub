@@ -7,7 +7,8 @@
   "scripts": {
     "bundle": "node bundle.js",
     "check": "node check-landmines.js",
-    "ship": "node bundle.js && node check-landmines.js"
+    "components": "node check-components.js",
+    "ship": "node bundle.js && node check-landmines.js && node check-components.js"
   },
   "devDependencies": {
     "@babel/parser": "^7.24.0"
