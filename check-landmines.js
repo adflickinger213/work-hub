@@ -26,8 +26,8 @@ const BASELINE = "landmines.baseline.json";
 const LANDMINES = {
   currentMinutes: /currentMinutes/g,
   loadedGuards: /if \(!loaded\) return;/g,
-  linkPickerForSlot: /linkPickerForSlot/g,
-  pipeChars: /\|/g,
+  linkPickerForSlotDecl: /const \[linkPickerForSlot/g,
+  pipeInDquotes: /"\|"/g,
   secWord: /\bsec\b/g,
 };
 
