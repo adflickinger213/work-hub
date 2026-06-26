@@ -4711,8 +4711,8 @@ export default function App() {
               textAlign: "center",
             }}>
               <p className="jost" style={{
-                fontSize: 10,
-                color: "rgba(74,53,64,0.4)",
+                fontSize: 8.5,
+                color: "rgba(74,53,64,0.26)",
                 letterSpacing: 0.3,
                 lineHeight: 1.5,
                 margin: 0,
