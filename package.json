@@ -1,0 +1,15 @@
+{
+  "name": "work-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal productivity app for FFCU implementation work",
+  "type": "module",
+  "scripts": {
+    "bundle": "node bundle.js",
+    "check": "node check-landmines.js",
+    "ship": "node bundle.js && node check-landmines.js"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.24.0"
+  }
+}
