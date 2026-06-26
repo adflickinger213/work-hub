@@ -3626,24 +3626,12 @@ export default function App() {
   // mode (MeetingFocusView). The check is roadmap-aware and quiet when no
   // meeting is current.
   const [activeMeetingBanner, setActiveMeetingBanner] = useState(null); // null | { slotIdx, label, startMin, endMin }
-  // Policy reminder banner — shown once per day, dismissible. Reinforces the
-  // Fort Financial AI Acceptable Use Policy: keep NPI and sensitive data out,
-  // drafts only, review before sending. Bake into the UX so the bright lines
-  // stay visible without nagging. Triggers based on data.policyBannerLastDismissed
-  // (ISO date string of last dismissal).
-  const [showPolicyBanner, setShowPolicyBanner] = useState(false);
   // Phase 2 — agent auto-start consent modal. null when not shown, or array
   // of candidate objects when the user has just committed today's roadmap and
   // we want to ask if they want Rosie to draft heads-up content for some tasks.
   const [agentConsentCandidates, setAgentConsentCandidates] = useState(null);
   // Agent panel — null when closed, agentId string when open
   const [openAgent, setOpenAgent] = useState(null);
-  useEffect(() => {
-    if (!data) return;
-    const todayISO = new Date().toISOString().slice(0, 10);
-    const lastDismissed = data.policyBannerLastDismissed || null;
-    if (lastDismissed !== todayISO) setShowPolicyBanner(true);
-  }, [data?.policyBannerLastDismissed]);
 
   // Weekly observations trigger — runs Monday mornings (or first day Lexy
   // opens the app each week if she misses Monday). Gates on weekOf so it
@@ -4571,49 +4559,6 @@ export default function App() {
       <div style={{ position: "fixed", top: "40%", right: "-10px", fontSize: 60, opacity: .04, color: "#b8a0d4", pointerEvents: "none", zIndex: 0 }}>❀</div>
       <SavedIndicator show={savedFlash} />
       <div style={{ position: "relative", zIndex: 1 }}>
-        {/* AI Acceptable Use Policy reminder — once per day, dismissible.
-            Reinforces Fort Financial's policy that Lexy co-authored:
-            no NPI, no internal sensitive data, drafts only, human review
-            required. Designed as a warm soft reminder, not a corporate nag. */}
-        {showPolicyBanner && (
-          <div className="card" style={{
-            marginBottom: 14,
-            padding: "10px 16px",
-            background: "linear-gradient(135deg, rgba(184,160,212,0.10), rgba(212,130,154,0.06))",
-            border: "1px dashed rgba(184,160,212,0.45)",
-            borderRadius: 10,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-          }}>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div className="jost" style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(152,120,184,0.85)", fontWeight: 600, marginBottom: 2 }}>
-                🌸 a quick reminder
-              </div>
-              <div className="jost" style={{ fontSize: 11.5, color: "#4a3540", lineHeight: 1.5 }}>
-                Keep NPI and internal sensitive info out — drafts only, review before sending. <span style={{ color: "rgba(74,53,64,0.5)" }}>You wrote the policy. You know the lines. 🌸</span>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                const todayISO = new Date().toISOString().slice(0, 10);
-                updateData({ ...data, policyBannerLastDismissed: todayISO });
-                setShowPolicyBanner(false);
-              }}
-              className="jost"
-              style={{
-                background: "rgba(184,160,212,0.12)",
-                border: "1px solid rgba(184,160,212,0.35)",
-                color: "#9878b8",
-                padding: "5px 12px", borderRadius: 7,
-                fontSize: 10, fontWeight: 600, letterSpacing: 0.3,
-                cursor: "pointer", whiteSpace: "nowrap",
-              }}
-            >Got it ✓</button>
-          </div>
-        )}
         {/* Weekly observations from Rosie — Monday morning surfacing.
             Only renders on overview-level screens so it doesn't intrude on
             check-in, roadmap-build, or focus flows where Lexy is heads-down. */}
@@ -4755,6 +4700,26 @@ export default function App() {
             } : null} showRoadmapHistory={showRoadmapHistory} setShowRoadmapHistory={setShowRoadmapHistory} showParkedDashboard={showParkedDashboard} setShowParkedDashboard={setShowParkedDashboard} onMeetingFocus={handleMeetingFocus} initialWorkTab={pendingWorkTab} />}
             {appTab === "meetings" && <MeetingsTab appTab={appTab} setAppTab={setAppTab} onAwardXP={awardXP} data={data} onUpdateData={updateData} appEnergy={energy} appMood={mood} onReCheckIn={() => setScreen("checkin")} onShowRoadmapLog={() => setShowRoadmapHistory(true)} pendingPastMeeting={pendingPastMeeting} onClearPendingPastMeeting={() => setPendingPastMeeting(null)} onMeetingFocus={handleMeetingFocus} />}
             {appTab === "email" && <EmailHub appTab={appTab} setAppTab={setAppTab} pendingMessagePrefill={pendingMessagePrefill} onClearPendingMessagePrefill={() => setPendingMessagePrefill(null)} />}
+            {/* Standing compliance reminder — Fort Financial AI Acceptable Use
+                Policy. Lives as a quiet footer, not a banner: muted, low-contrast,
+                thin divider above, so it reads as boilerplate rather than a call
+                to action. No NPI / sensitive data, drafts only, human review. */}
+            <div style={{
+              marginTop: 28,
+              paddingTop: 12,
+              borderTop: "1px solid rgba(184,160,212,0.18)",
+              textAlign: "center",
+            }}>
+              <p className="jost" style={{
+                fontSize: 10,
+                color: "rgba(74,53,64,0.4)",
+                letterSpacing: 0.3,
+                lineHeight: 1.5,
+                margin: 0,
+              }}>
+                Drafts only — keep NPI and sensitive info out, review before sending.
+              </p>
+            </div>
           </>
         )}
         {screen === "focus" && focusItem && <FocusView item={data.items.find(i => i.id === focusItem.id) || focusItem} allItems={data.items} spirals={data.spirals || []} onAddSpiral={addSpiralRoot} onUpdateSpiral={updateSpiralRoot} onDeleteSpiral={deleteSpiralRoot} energy={energy} mood={mood} onUpdate={updateItem} onBack={() => { setPendingWorkTab(null); setScreen("overview"); }} onBackToTasks={() => { setPendingWorkTab("tasks"); setScreen("overview"); }} onBackToRoadmap={() => { setPendingWorkTab("today"); setScreen("overview"); }} onOneThing={handleOneThing} onAwardXP={awardXP} fullData={data} updateFullData={updateData} roadmap={roadmap} onUpdateRoadmap={setRoadmap} onMeetingFocus={handleMeetingFocus} onSwitchItem={handleFocus} />}
