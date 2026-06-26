@@ -2399,7 +2399,7 @@ Draft the message:`;
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

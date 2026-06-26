@@ -1287,7 +1287,7 @@ in mode 1, NO markers at all — just return the refined text.`;
     { role: 'user', content: userMessage },
   ];
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('/api/rosie', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

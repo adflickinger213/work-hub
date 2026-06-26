@@ -4875,7 +4875,7 @@ The question / prompt directed at them: "${question}"
 
 Return ONLY the suggested response text. No preamble, no quotation marks, no "you could say".`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/rosie", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -4996,7 +4996,7 @@ Return ONLY a JSON object (no markdown, no backticks, no preamble) with exactly 
 Rules: Base everything strictly on the transcript — never invent owners, dates, or decisions. Empty array if a section has nothing. Keep bullets tight and skimmable.`;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/rosie", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -8631,7 +8631,7 @@ Energy level: ${energy}
 Generate the full meeting script for Lexy.`;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -8703,7 +8703,7 @@ LEXY'S REQUEST: ${userRequest}
 Return the updated full state as JSON.`;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -8783,7 +8783,7 @@ ${notesText}
 Parse these notes.`;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

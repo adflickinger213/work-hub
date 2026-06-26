@@ -4,7 +4,7 @@
 
 // ── Claude API (Rosie) ────────────────────────────────────────────────────────
 async function askRosie(messages, systemPrompt, maxTokens = 1000) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: maxTokens, system: systemPrompt, messages }),
   });
@@ -85,7 +85,7 @@ async function estimateTaskTimes(tasks, itemTitle, opts = {}) {
     historySummary || null,
   ].filter(s => s !== null).join("\n");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514", max_tokens: 300,
@@ -222,7 +222,7 @@ async function planTaskDatesWithAI(itemTitle, tasks, taskTimes, startDate, dueDa
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -335,7 +335,7 @@ Subtask title:`;
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -419,7 +419,7 @@ Return JSON only with a "suggestions" array. Each suggestion is an object with "
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -519,7 +519,7 @@ Suggest the NEW task:`;
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -582,7 +582,7 @@ Rules:
 Suggest the park-until date:`;
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -655,7 +655,7 @@ RULES:
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -758,7 +758,7 @@ RULES:
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -869,7 +869,7 @@ RULES:
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1063,7 +1063,7 @@ async function runAgent(agentId, userInput, taskContext, onLog) {
     : inputContent;
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1214,7 +1214,7 @@ POLICY:
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1330,7 +1330,7 @@ ${JSON.stringify(activitySummary, null, 2)}`;
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1406,7 +1406,7 @@ SUMMARY RULES:
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1519,7 +1519,7 @@ ${nudgeBlocks.length > 0 ? "\n" + nudgeBlocks.join("\n\n") : ""}`;
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1573,7 +1573,7 @@ ${linkedItem ? `RELATED TASK: "${linkedItem.title}"` : ""}`;
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1650,7 +1650,7 @@ ${linkedItem ? `- Related task: "${linkedItem.title}"` : ""}
 
   let res;
   try {
-    res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+    res = await fetchWithTimeout("/api/rosie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1761,7 +1761,7 @@ async function suggestFieldWithAI(fieldKey, itemTitle, category, existingValues 
     existingValues.done ? `Done looks like: ${existingValues.done}` : "",
   ].filter(Boolean).join("\n");
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -1850,7 +1850,7 @@ async function detectTasksInText(itemTitle, fieldName, fieldText, existingTasks 
   ].join("\n");
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -1905,7 +1905,7 @@ async function refineFormFieldsWithAI(currentForm, userFeedback) {
   ].join("\n");
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -1930,7 +1930,7 @@ async function suggestPriorityWithAI(itemTitle, why, category) {
     why ? `Why: ${why}` : "",
   ].filter(Boolean).join("\n");
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -1983,7 +1983,7 @@ async function suggestDatesWithAI(itemTitle, why, done, priority) {
     done ? `Done looks like: ${done}` : "",
   ].filter(Boolean).join("\n");
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -2081,7 +2081,7 @@ async function generateTasksWithAI(itemTitle, why, done, notes) {
     "Break this into 3-7 realistic subtasks with time estimates.",
   ].filter(Boolean).join("\n");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
@@ -2260,7 +2260,7 @@ async function refine1on1Summary(currentSummary, items, feedback) {
 }
 
 async function classifySpiral(title, notes, links, relatedItemTitle) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514", max_tokens: 220,
@@ -2636,7 +2636,7 @@ async function askRosieWithTools({ messages, systemPrompt, getLatestData, onData
   })();
 
   for (let step = 0; step < maxSteps; step++) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -2862,7 +2862,7 @@ async function generateRoadmap(items, energy, mood, note) {
   try {
     let res;
     try {
-      res = await fetch("https://api.anthropic.com/v1/messages", {
+      res = await fetch("/api/rosie", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -3037,7 +3037,7 @@ async function refineRoadmap(currentRoadmap, items, energy, mood, userFeedback) 
   ].join("\n");
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -3286,7 +3286,7 @@ async function suggestRemindersWithAI(items, existingReminders = []) {
   ].join("\n");
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",

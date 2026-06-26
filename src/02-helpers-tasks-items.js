@@ -892,7 +892,7 @@ async function parseListToTasks(pastedText, parentItemTitle = "") {
   ].filter(Boolean).join("\n");
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514", max_tokens: 800,
@@ -945,7 +945,7 @@ async function parseListToItems(pastedText) {
     "- Skip category if unclear — don't force a label.",
   ].join("\n");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514", max_tokens: 2000,
