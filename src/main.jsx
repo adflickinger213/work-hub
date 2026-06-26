@@ -1,9 +1,125 @@
-// main.jsx — the entry point Vite uses to boot the app in a real browser.
-// Order matters: the storage shim must run BEFORE the app so window.storage
-// exists when the app's code first touches it.
+// main.jsx — boots the app behind a password gate.
+// The shim must load before the app. The gate shows a login screen and only
+// renders <App/> after api/login accepts the password. The real protection is
+// the httpOnly cookie that api/login sets and api/rosie checks server-side;
+// the sessionStorage flag here is just UI state.
 import "./storage-shim.js";
-import React from "react";
+import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import App from "../dist/work-hub.bundle.jsx";
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+function AuthGate() {
+  const [unlocked, setUnlocked] = useState(
+    () => typeof sessionStorage !== "undefined" && sessionStorage.getItem("wh_unlocked") === "1"
+  );
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pw }),
+      });
+      if (r.ok) {
+        try { sessionStorage.setItem("wh_unlocked", "1"); } catch {}
+        setUnlocked(true);
+      } else {
+        setErr("That doesn't look right. Try again.");
+      }
+    } catch {
+      setErr("Something went wrong. Give it another moment.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (unlocked) return <App />;
+
+  const wrap = {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "linear-gradient(160deg, #fdf6f0 0%, #f7ede9 100%)",
+    fontFamily: "'Jost', system-ui, sans-serif",
+    padding: 24,
+  };
+  const card = {
+    background: "#fffaf6",
+    borderRadius: 24,
+    padding: "40px 36px",
+    width: "100%",
+    maxWidth: 380,
+    boxShadow: "0 12px 40px rgba(120, 80, 90, 0.12)",
+    textAlign: "center",
+  };
+  const input = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "12px 14px",
+    borderRadius: 14,
+    border: "1px solid #e7d6cf",
+    background: "#fff",
+    fontSize: 15,
+    fontFamily: "'Jost', system-ui, sans-serif",
+    marginBottom: 12,
+    outline: "none",
+  };
+  const button = {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 14,
+    border: "none",
+    background: busy ? "#d9b8c0" : "#c98ba0",
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "'Jost', system-ui, sans-serif",
+    cursor: busy ? "default" : "pointer",
+  };
+
+  return (
+    <div style={wrap}>
+      <div style={card}>
+        <div style={{ fontSize: 30, marginBottom: 6 }}>🌸</div>
+        <div
+          style={{
+            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontSize: 30,
+            fontStyle: "italic",
+            color: "#5a4049",
+            marginBottom: 4,
+          }}
+        >
+          Welcome back
+        </div>
+        <div style={{ fontSize: 13, color: "rgba(90,64,73,0.6)", marginBottom: 22 }}>
+          Enter your password to open your space.
+        </div>
+        <form onSubmit={submit}>
+          <input
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            placeholder="Password"
+            autoFocus
+            style={input}
+          />
+          <button type="submit" disabled={busy} style={button}>
+            {busy ? "Opening…" : "Enter"}
+          </button>
+        </form>
+        {err && (
+          <div style={{ fontSize: 12, color: "#b8607c", marginTop: 12 }}>{err}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<AuthGate />);
