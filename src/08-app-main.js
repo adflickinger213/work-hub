@@ -1291,7 +1291,7 @@ in mode 1, NO markers at all — just return the refined text.`;
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       system: systemPrompt,
       messages,

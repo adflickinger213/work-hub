@@ -6,7 +6,7 @@
 async function askRosie(messages, systemPrompt, maxTokens = 1000) {
   const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: maxTokens, system: systemPrompt, messages }),
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: maxTokens, system: systemPrompt, messages }),
   });
   const data = await res.json();
   return data.content?.find(b => b.type === "text")?.text || "Still here with you 🌸 — Rosie";
@@ -88,7 +88,7 @@ async function estimateTaskTimes(tasks, itemTitle, opts = {}) {
   const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514", max_tokens: 300,
+      model: "claude-sonnet-4-6", max_tokens: 300,
       system: systemPrompt,
       messages: [{ role: "user", content: `Item: "${itemTitle}"\nTasks:\n${tasks.map((t,i)=>`${i+1}. ${t}`).join("\n")}` }],
     }),
@@ -225,7 +225,7 @@ async function planTaskDatesWithAI(itemTitle, tasks, taskTimes, startDate, dueDa
     res = await fetchWithTimeout("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1200,
         system: systemPrompt,
         messages: [{ role: "user", content: userMsg }],
@@ -338,7 +338,7 @@ Subtask title:`;
     res = await fetchWithTimeout("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 80,
         system,
         messages: [{ role: "user", content: userMsg }],
@@ -422,7 +422,7 @@ Return JSON only with a "suggestions" array. Each suggestion is an object with "
     res = await fetchWithTimeout("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 400,
         system,
         messages: [{ role: "user", content: userMsg }],
@@ -523,7 +523,7 @@ Suggest the NEW task:`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 250,
         system,
         messages: [{ role: "user", content: userMsg }],
@@ -586,7 +586,7 @@ Suggest the park-until date:`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 200,
         system,
         messages: [{ role: "user", content: userMsg }],
@@ -659,7 +659,7 @@ RULES:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 600,
         system,
         messages: [{ role: "user", content: ctx }],
@@ -762,7 +762,7 @@ RULES:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 500,
         system,
         messages: [{ role: "user", content: ctxLines.join("\n") }],
@@ -873,7 +873,7 @@ RULES:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 500,
         system,
         messages: [{ role: "user", content: ctxLines.join("\n") }],
@@ -1067,7 +1067,7 @@ async function runAgent(agentId, userInput, taskContext, onLog) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1500,
         system: agent.systemPrompt,
         messages: [{ role: "user", content: userMessage }],
@@ -1218,7 +1218,7 @@ POLICY:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1200,
         system,
         messages,
@@ -1334,7 +1334,7 @@ ${JSON.stringify(activitySummary, null, 2)}`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 600,
         system,
         messages: [{ role: "user", content: ctx }],
@@ -1410,7 +1410,7 @@ SUMMARY RULES:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 250,
         system,
         messages: [{ role: "user", content: ctx }],
@@ -1523,7 +1523,7 @@ ${nudgeBlocks.length > 0 ? "\n" + nudgeBlocks.join("\n\n") : ""}`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 700,
         system,
         messages,
@@ -1577,7 +1577,7 @@ ${linkedItem ? `RELATED TASK: "${linkedItem.title}"` : ""}`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 500,
         system,
         messages: priorMessages.map(m => ({ role: m.role, content: m.content })),
@@ -1654,7 +1654,7 @@ ${linkedItem ? `- Related task: "${linkedItem.title}"` : ""}
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 400,
         system,
         messages: priorMessages.map(m => ({ role: m.role, content: m.content })),
@@ -1764,7 +1764,7 @@ async function suggestFieldWithAI(fieldKey, itemTitle, category, existingValues 
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 150,
         system: `You help Lexy (Project Coordinator, Implementation team at Fort Financial Credit Union) fill in a work item form. She implements fraud detection, lending, and financial systems (Verafin, Zoho, Arkatechture, Movemint, etc). Be concise, practical, and accurate. ${prompt}`,
         messages: [{ role: "user", content: context }],
@@ -1853,7 +1853,7 @@ async function detectTasksInText(itemTitle, fieldName, fieldText, existingTasks 
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 400,
         system: systemPrompt,
         messages: [{ role: "user", content: userMsg }],
@@ -1908,7 +1908,7 @@ async function refineFormFieldsWithAI(currentForm, userFeedback) {
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 600,
         system: systemPrompt,
         messages: [{ role: "user", content: userMsg }],
@@ -1933,7 +1933,7 @@ async function suggestPriorityWithAI(itemTitle, why, category) {
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 40,
         system: [
           "You assess work item priority for Lexy (Project Coordinator, Implementation team at Fort Financial Credit Union).",
@@ -1986,7 +1986,7 @@ async function suggestDatesWithAI(itemTitle, why, done, priority) {
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 150,
         system: [
           "You suggest realistic start + due dates for Lexy's work items at Fort Financial Credit Union.",
@@ -2084,7 +2084,7 @@ async function generateTasksWithAI(itemTitle, why, done, notes) {
   const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 800,
       system: systemPrompt,
       messages: [{ role: "user", content: userMsg }],
@@ -2263,7 +2263,7 @@ async function classifySpiral(title, notes, links, relatedItemTitle) {
   const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514", max_tokens: 220,
+      model: "claude-sonnet-4-6", max_tokens: 220,
       system: `You are Rosie, a warm ADHD-aware work buddy for Lexy (Project Coordinator, Implementation team at Fort Financial Credit Union in Fort Wayne, IN). She's capturing a hyperfocus rabbit hole so she doesn't lose it when the interest fades. Return ONLY a JSON object, no markdown: {"verdict":"work|tangent|mixed","confidence":"high|medium|low","line":"1 warm honest sentence, max 20 words"}. "work"=directly useful for her job (system implementation, fraud, lending, workflow automation, vendor management). "tangent"=genuine interest but unrelated to her role. "mixed"=could spark something useful but drifted from the original target. Be kind, not judgmental. Hyperfocus is a superpower, and tangents are valid — they sometimes become the next project. Use warm honest language like you'd use with a friend, not a corporate coach.`,
       messages: [{ role: "user", content: `Spiral title: "${title}"${relatedItemTitle ? `\nRelated work item: "${relatedItemTitle}"` : ""}\nNotes: ${notes || "(none)"}\nLinks: ${links.join(", ") || "(none)"}` }],
     }),
@@ -2639,7 +2639,7 @@ async function askRosieWithTools({ messages, systemPrompt, getLatestData, onData
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1500,
         system: systemPrompt,
         tools: ROSIE_TOOLS,
@@ -2865,7 +2865,7 @@ async function generateRoadmap(items, energy, mood, note) {
       res = await fetch("/api/rosie", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 1200,
           system: systemPrompt,
           messages: [{ role: "user", content: userMsg }],
@@ -3040,7 +3040,7 @@ async function refineRoadmap(currentRoadmap, items, energy, mood, userFeedback) 
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: "user", content: userMsg }],
@@ -3289,7 +3289,7 @@ async function suggestRemindersWithAI(items, existingReminders = []) {
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 700,
         system: systemPrompt,
         messages: [{ role: "user", content: userMsg }],

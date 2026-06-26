@@ -4879,7 +4879,7 @@ Return ONLY the suggested response text. No preamble, no quotation marks, no "yo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 1024,
           messages: [{ role: "user", content: prompt }],
         }),
@@ -5000,7 +5000,7 @@ Rules: Base everything strictly on the transcript — never invent owners, dates
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 4000,
           messages: [{ role: "user", content: prompt }],
         }),
@@ -8635,7 +8635,7 @@ Generate the full meeting script for Lexy.`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2500,
         system: SCRIPT_SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMsg }],
@@ -8707,7 +8707,7 @@ Return the updated full state as JSON.`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 3000,
         system: REFINE_PREP_SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMsg }],
@@ -8787,7 +8787,7 @@ Parse these notes.`;
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 3000,
         system: NOTES_SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMsg }],

@@ -78,7 +78,7 @@ re-record). Drift usually means something was accidentally added or dropped.
   so the app is edited+verified here, not run here. It runs in the Claude.ai
   artifact. Use the existing Export/Import backup flow to move data.
 - **AI:** direct calls to `https://api.anthropic.com`, model
-  `claude-sonnet-4-20250514`. In the artifact sandbox the call is **keyless**
+  `claude-sonnet-4-6`. In the artifact sandbox the call is **keyless**
   (the runtime injects auth). Don't add an API key. Don't change the model
   unless asked.
 

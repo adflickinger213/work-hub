@@ -895,7 +895,7 @@ async function parseListToTasks(pastedText, parentItemTitle = "") {
     const res = await fetch("/api/rosie", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514", max_tokens: 800,
+        model: "claude-sonnet-4-6", max_tokens: 800,
         system: systemPrompt,
         messages: [{ role: "user", content: pastedText }],
       }),
@@ -948,7 +948,7 @@ async function parseListToItems(pastedText) {
   const res = await fetch("/api/rosie", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514", max_tokens: 2000,
+      model: "claude-sonnet-4-6", max_tokens: 2000,
       system: systemPrompt,
       messages: [{ role: "user", content: `Parse this into work items:\n\n${pastedText}` }],
     }),
