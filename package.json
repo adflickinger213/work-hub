@@ -8,9 +8,19 @@
     "bundle": "node bundle.js",
     "check": "node check-landmines.js",
     "components": "node check-components.js",
-    "ship": "node bundle.js && node check-landmines.js && node check-components.js"
+    "ship": "node bundle.js && node check-landmines.js && node check-components.js",
+    "dev": "npm run bundle && vite",
+    "build": "npm run bundle && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^1.21.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@babel/parser": "^7.24.0"
+    "@babel/parser": "^7.24.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
   }
 }

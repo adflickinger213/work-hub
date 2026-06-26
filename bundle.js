@@ -25,7 +25,7 @@ function main() {
 
   const files = fs
     .readdirSync(SRC_DIR)
-    .filter((f) => f.endsWith(".js") || f.endsWith(".jsx"))
+    .filter((f) => /^\d{2}-.*\.(js|jsx)$/.test(f)) // only NN-name.js modules
     .sort(); // filenames like 00-, 01-, 02- sort into the right order
 
   if (files.length === 0) {
