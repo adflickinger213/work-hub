@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Work Hub</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#C4A882" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,5 +17,15 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Register the service worker for offline support + PWA install.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("/sw.js").catch(function (err) {
+            console.warn("[work-hub] SW registration failed:", err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
