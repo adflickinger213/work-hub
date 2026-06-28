@@ -1019,6 +1019,20 @@ function ChatPanel({ systemPrompt, placeholder, greeting, data, onDataUpdate, fo
         : "Couldn't reach Rosie just now — try once more? 🌸";
       setMsgs(prev => [...prev, { role: "assistant", content: errMsg }]);
     }
+    // Persist the chat session through the ESM storage bridge (set up in
+    // main.jsx). The artifact can't import lib/storage directly, so it logs
+    // sessions to STORAGE_KEYS.sessions via window.__workhub.saveSession.
+    try {
+      setMsgs(prev => {
+        window.__workhub?.saveSession?.({
+          agent: "rosie",
+          focusedItemId: focusedItemId || null,
+          messages: prev.filter(m => typeof m.content === "string"),
+          endedAt: new Date().toISOString(),
+        });
+        return prev;
+      });
+    } catch {}
     setLoading(false);
   };
 
