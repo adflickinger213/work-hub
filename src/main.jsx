@@ -7,6 +7,30 @@ import "./storage-shim.js";
 import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import App from "../dist/work-hub.bundle.jsx";
+import { migrateFromV4, saveStore, loadStore, STORAGE_KEYS } from "../lib/storage.js";
+
+// One-time, idempotent migration of the old work-hub-v4 blob into the new
+// storage schema. Safe to call on every boot.
+migrateFromV4();
+
+// Bridge the new ESM storage helpers to the concatenated artifact, which can't
+// import modules (golden rule: the bundle is one shared scope, no imports). The
+// artifact persists Rosie chat sessions by calling window.__workhub.saveSession.
+if (typeof window !== "undefined") {
+  window.__workhub = window.__workhub || {};
+  window.__workhub.saveSession = function saveSession(session) {
+    try {
+      const prev = loadStore(STORAGE_KEYS.sessions) || [];
+      const list = Array.isArray(prev) ? prev : [];
+      list.push(session);
+      // Keep the log bounded so storage never balloons.
+      const trimmed = list.slice(-200);
+      return saveStore(STORAGE_KEYS.sessions, trimmed);
+    } catch {
+      return false;
+    }
+  };
+}
 
 function AuthGate() {
   const [unlocked, setUnlocked] = useState(

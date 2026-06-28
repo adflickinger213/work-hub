@@ -1,32 +1,76 @@
-// api/login.js — checks the app password and, if correct, sets a secure
-// httpOnly cookie. The browser can't read this cookie from JS, and it only
-// travels over HTTPS, so it's a real gate (not a snoopable front-end check).
+// api/login.js — the password gate. On a correct password it issues an HMAC
+// session token (signed with JWT_SECRET) and sets it as an httpOnly cookie the
+// browser can't read from JS. api/agent and api/rosie verify that token before
+// doing any work, so this is a real server-side gate, not a front-end check.
 //
-// Requires the APP_PASSWORD environment variable to be set in Vercel.
+// Requires APP_PASSWORD and JWT_SECRET environment variables in Vercel.
+// On failure it returns { ok: false } with no detail — nothing to probe.
+//
+// Brute-force protection: an IP is locked out after 10 failed attempts within
+// a rolling 24-hour window. Every failed attempt is logged with a timestamp.
+
+import { signSession, sessionCookie } from "../lib/auth.js";
+
+const SECLOG = "[work-hub][security]";
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_FAILS = 10;
+
+// Module-level map: ip -> number[] of failed-attempt timestamps. In-memory only;
+// a production multi-instance deployment would need a shared store.
+const failures = new Map();
+
+function clientIp(req) {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.length) return fwd.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
+function recentFails(ip) {
+  const now = Date.now();
+  return (failures.get(ip) || []).filter((t) => now - t < WINDOW_MS);
+}
+
+function recordFail(ip) {
+  const fails = recentFails(ip);
+  fails.push(Date.now());
+  failures.set(ip, fails);
+  return fails.length;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
+    res.status(405).json({ ok: false });
+    return;
+  }
+
+  const ip = clientIp(req);
+
+  // Locked out?
+  if (recentFails(ip).length >= MAX_FAILS) {
+    console.warn(`${SECLOG} login locked ip=${ip} at ${new Date().toISOString()}`);
+    res.status(429).json({ ok: false });
     return;
   }
 
   const expected = process.env.APP_PASSWORD;
-  if (!expected) {
-    res.status(500).json({ error: "Server is missing APP_PASSWORD" });
+  const secret = process.env.JWT_SECRET;
+  if (!expected || !secret) {
+    // Misconfiguration — don't leak which piece is missing.
+    res.status(500).json({ ok: false });
     return;
   }
 
   const { password } = req.body || {};
   if (typeof password !== "string" || password !== expected) {
-    res.status(401).json({ error: "Incorrect password" });
+    const count = recordFail(ip);
+    console.warn(`${SECLOG} failed login ip=${ip} attempt=${count} at ${new Date().toISOString()}`);
+    res.status(401).json({ ok: false });
     return;
   }
 
-  // 30-day httpOnly cookie. Value is the password, checked server-side by
-  // api/rosie. HttpOnly = JS can't read it; Secure = HTTPS only.
-  res.setHeader(
-    "Set-Cookie",
-    `wh_auth=${encodeURIComponent(expected)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000`
-  );
-  res.status(200).json({ ok: true });
+  // Success — clear any prior failures and issue the session.
+  failures.delete(ip);
+  const token = signSession(secret);
+  res.setHeader("Set-Cookie", sessionCookie(token));
+  res.status(200).json({ ok: true, token });
 }

@@ -1,13 +1,74 @@
-// api/rosie.js — the proxy for Rosie's AI calls. It does two jobs:
-//   1. Confirms the request carries the valid auth cookie (set by api/login).
-//   2. Forwards the request to Anthropic with the secret API key attached
-//      server-side, so the key is never in the browser.
+// api/rosie.js — compatibility shim for Rosie.
 //
-// The app calls this exactly like it used to call Anthropic directly — same
-// JSON body ({ model, max_tokens, system, messages }) — and gets Anthropic's
-// response back unchanged, so the app's existing parsing keeps working.
+// Anthropic logic now lives in one place: api/agent.js. This route no longer
+// talks to Anthropic itself. It translates the older Rosie request shape
+// ({ model, max_tokens, system, messages }) into an agent call, delegates to
+// the agent handler, and then re-wraps the agent's normalized { ok, data }
+// response back into the raw Anthropic envelope ({ content: [{ type, text }] })
+// that the existing app code parses. That keeps every old /api/rosie caller
+// working unchanged while routing through the single agent endpoint.
 //
-// Requires APP_PASSWORD and ANTHROPIC_API_KEY environment variables in Vercel.
+// New code should call /api/agent with { agentName: "rosie", instruction,
+// externalContent } directly.
+
+import agentHandler from "./agent.js";
+
+// Pull the freshest user text out of an Anthropic-style messages array.
+function lastUserText(messages) {
+  if (!Array.isArray(messages)) return "";
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m && m.role === "user") {
+      if (typeof m.content === "string") return m.content;
+      if (Array.isArray(m.content)) {
+        const block = m.content.find((b) => b && b.type === "text");
+        if (block) return block.text || "";
+      }
+    }
+  }
+  return "";
+}
+
+// Turn the agent's normalized data back into a plain text string. JSON agents
+// (roadmaps, parsers) get re-serialized so the caller's JSON.parse still works;
+// plain-text replies pass through.
+function dataToText(data) {
+  if (data && typeof data === "object") {
+    const keys = Object.keys(data);
+    if (keys.length === 1 && typeof data.text === "string") return data.text;
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return String(data.text ?? "");
+    }
+  }
+  return typeof data === "string" ? data : "";
+}
+
+// Minimal capturing response so we can read what the agent handler produced
+// and reshape it before sending the real response.
+function makeCapture() {
+  const cap = { statusCode: 200, body: null, headers: {} };
+  return {
+    cap,
+    res: {
+      setHeader(k, v) {
+        cap.headers[k] = v;
+      },
+      status(code) {
+        cap.statusCode = code;
+        return this;
+      },
+      json(payload) {
+        cap.body = payload;
+        return this;
+      },
+      end() {
+        return this;
+      },
+    },
+  };
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -15,41 +76,31 @@ export default async function handler(req, res) {
     return;
   }
 
-  // --- auth check (cookie set by api/login) ---
-  const expected = process.env.APP_PASSWORD;
-  const cookie = req.headers.cookie || "";
-  const found = cookie
-    .split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith("wh_auth="));
-  const token = found ? decodeURIComponent(found.slice("wh_auth=".length)) : null;
+  const body = req.body || {};
+  // Map the legacy shape onto the agent contract.
+  req.body = {
+    agentName: "rosie",
+    instruction: body.instruction || lastUserText(body.messages) || "",
+    externalContent: body.externalContent,
+  };
 
-  if (!expected || token !== expected) {
-    res.status(401).json({ error: "Not authorized" });
-    return;
-  }
+  const { cap, res: capRes } = makeCapture();
+  await agentHandler(req, capRes);
 
-  // --- forward to Anthropic with the secret key ---
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    res.status(500).json({ error: "Server is missing ANTHROPIC_API_KEY" });
-    return;
-  }
+  // Pass through any cookies/headers the agent set (e.g. CORS).
+  for (const [k, v] of Object.entries(cap.headers)) res.setHeader(k, v);
 
-  try {
-    const upstream = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify(req.body),
+  const payload = cap.body || {};
+  if (payload.ok) {
+    // Re-wrap into the raw Anthropic envelope the app expects.
+    res.status(200).json({
+      content: [{ type: "text", text: dataToText(payload.data) }],
     });
-
-    const data = await upstream.json();
-    res.status(upstream.status).json(data);
-  } catch (e) {
-    res.status(502).json({ error: "Upstream request to Anthropic failed" });
+    return;
   }
+
+  // Failure / anomaly: surface a non-2xx so existing callers fall into their
+  // catch/!res.ok branches, without leaking internals.
+  const code = cap.statusCode >= 400 ? cap.statusCode : 502;
+  res.status(code).json({ error: payload.error || "rosie_unavailable" });
 }

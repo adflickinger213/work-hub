@@ -6,4 +6,10 @@ import react from "@vitejs/plugin-react";
 // dist/ never needs to be committed.
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Work Hub ships as one large artifact bundle on purpose (it pastes back
+    // into a single Claude.ai artifact), so the default 500 kB chunk advisory
+    // doesn't apply. Raise the limit so a clean build emits no warnings.
+    chunkSizeWarningLimit: 2000,
+  },
 });
