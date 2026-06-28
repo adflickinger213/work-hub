@@ -35,6 +35,33 @@ const SYSTEM_PROMPTS = {
 
 const MAX_TOKENS = 4096;
 const LOG = "[work-hub]";
+const SECLOG = "[work-hub][security]";
+
+// --- simple in-memory rate limiter: 30 requests / minute / IP ---
+// Module-level Map persists across invocations on a warm serverless instance.
+// Note: in-memory only — a production multi-instance setup needs a shared store.
+const RATE_WINDOW_MS = 60 * 1000;
+const RATE_MAX = 30;
+const rateHits = new Map(); // ip -> number[] (timestamps)
+
+function clientIp(req) {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.length) return fwd.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
+// Returns true if the request is allowed; false if it should be rate-limited.
+function rateLimitOk(ip) {
+  const now = Date.now();
+  const hits = (rateHits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (hits.length >= RATE_MAX) {
+    rateHits.set(ip, hits);
+    return false;
+  }
+  hits.push(now);
+  rateHits.set(ip, hits);
+  return true;
+}
 
 // CORS — locked to this deployment's own origin only. VERCEL_URL is the
 // deployment host without protocol; ALLOWED_ORIGIN can override for a custom
@@ -87,6 +114,14 @@ export default async function handler(req, res) {
   }
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "method_not_allowed", anomalous: false });
+    return;
+  }
+
+  // --- rate limit (30/min/IP) ---
+  const ip = clientIp(req);
+  if (!rateLimitOk(ip)) {
+    console.warn(`${SECLOG} rate limited ip=${ip} at ${new Date().toISOString()}`);
+    res.status(429).json({ ok: false, error: "rate_limited", anomalous: false });
     return;
   }
 

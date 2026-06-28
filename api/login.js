@@ -5,12 +5,50 @@
 //
 // Requires APP_PASSWORD and JWT_SECRET environment variables in Vercel.
 // On failure it returns { ok: false } with no detail — nothing to probe.
+//
+// Brute-force protection: an IP is locked out after 10 failed attempts within
+// a rolling 24-hour window. Every failed attempt is logged with a timestamp.
 
 import { signSession, sessionCookie } from "../lib/auth.js";
+
+const SECLOG = "[work-hub][security]";
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_FAILS = 10;
+
+// Module-level map: ip -> number[] of failed-attempt timestamps. In-memory only;
+// a production multi-instance deployment would need a shared store.
+const failures = new Map();
+
+function clientIp(req) {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.length) return fwd.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
+function recentFails(ip) {
+  const now = Date.now();
+  return (failures.get(ip) || []).filter((t) => now - t < WINDOW_MS);
+}
+
+function recordFail(ip) {
+  const fails = recentFails(ip);
+  fails.push(Date.now());
+  failures.set(ip, fails);
+  return fails.length;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false });
+    return;
+  }
+
+  const ip = clientIp(req);
+
+  // Locked out?
+  if (recentFails(ip).length >= MAX_FAILS) {
+    console.warn(`${SECLOG} login locked ip=${ip} at ${new Date().toISOString()}`);
+    res.status(429).json({ ok: false });
     return;
   }
 
@@ -24,10 +62,14 @@ export default async function handler(req, res) {
 
   const { password } = req.body || {};
   if (typeof password !== "string" || password !== expected) {
+    const count = recordFail(ip);
+    console.warn(`${SECLOG} failed login ip=${ip} attempt=${count} at ${new Date().toISOString()}`);
     res.status(401).json({ ok: false });
     return;
   }
 
+  // Success — clear any prior failures and issue the session.
+  failures.delete(ip);
   const token = signSession(secret);
   res.setHeader("Set-Cookie", sessionCookie(token));
   res.status(200).json({ ok: true, token });

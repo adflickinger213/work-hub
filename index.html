@@ -17,15 +17,7 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Register the service worker for offline support + PWA install.
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", function () {
-          navigator.serviceWorker.register("/sw.js").catch(function (err) {
-            console.warn("[work-hub] SW registration failed:", err);
-          });
-        });
-      }
-    </script>
+    <!-- External (not inline) so the CSP can forbid inline scripts. -->
+    <script src="/register-sw.js"></script>
   </body>
 </html>
