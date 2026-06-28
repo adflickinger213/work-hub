@@ -6,10 +6,13 @@
 // getFromCache()  — reads the pre-gen cache; null if missing or older than 7 days.
 // saveToCache(weekPlan) — writes the plan to the cache with a timestamp.
 
-import { saveStore, loadStore, STORAGE_KEYS } from "../../lib/storage.js";
 import { wrapExternalContent } from "../../lib/safeWrap.js";
-
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+import {
+  getPreGenCache,
+  savePreGenCache,
+  shouldPreGenerate,
+} from "../../lib/preGen.js";
+import { loadStore, STORAGE_KEYS } from "../../lib/storage.js";
 
 export function useSage() {
   async function generateWeekPlan(capacityState, tasks, peakFocusWindow) {
@@ -45,24 +48,18 @@ export function useSage() {
     }
   }
 
+  // Cache logic now lives in lib/preGen.js (4-day Friday-batch/Monday-serve).
   function getFromCache() {
-    const cached = loadStore(STORAGE_KEYS.preGenCache);
-    if (!cached || typeof cached !== "object") return null;
-    const ts = Number(cached.timestamp);
-    if (!Number.isFinite(ts)) return null;
-    if (Date.now() - ts > SEVEN_DAYS_MS) return null; // expired
-    return cached.weekPlan || null;
+    const cached = getPreGenCache();
+    return cached ? cached.weekPlan || null : null;
   }
 
   function saveToCache(weekPlan) {
-    return saveStore(STORAGE_KEYS.preGenCache, {
-      weekPlan,
-      timestamp: Date.now(),
-      generatedBy: "sage",
-    });
+    const capacity = loadStore(STORAGE_KEYS.capacityState);
+    return savePreGenCache(weekPlan, capacity);
   }
 
-  return { generateWeekPlan, getFromCache, saveToCache };
+  return { generateWeekPlan, getFromCache, saveToCache, shouldPreGenerate };
 }
 
 export default useSage;

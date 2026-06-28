@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSage } from "../hooks/useSage.js";
+import { runMorningServe } from "../../lib/agentOrchestrator.js";
 import { loadStore, STORAGE_KEYS } from "../../lib/storage.js";
 
 const DAYS = [
@@ -101,13 +102,17 @@ export default function WeeklyPlan({ weekPlan: weekPlanProp }) {
   const [plan, setPlan] = useState(weekPlanProp || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fromCache, setFromCache] = useState(false);
 
-  // On Monday, try the pre-gen cache before anything else.
+  // On Monday, serve the Friday-batch cache before anything else.
   useEffect(() => {
     if (weekPlanProp) return;
     if (isMonday()) {
-      const cached = sage.getFromCache();
-      if (cached) setPlan(cached);
+      const served = runMorningServe();
+      if (served.fromCache && served.weekPlan) {
+        setPlan(served.weekPlan);
+        setFromCache(true);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -120,6 +125,7 @@ export default function WeeklyPlan({ weekPlan: weekPlanProp }) {
     const result = await sage.generateWeekPlan(capacity, tasks, null);
     if (result) {
       setPlan(result);
+      setFromCache(false);
       sage.saveToCache(result);
     } else {
       setError("Sage couldn't shape the week just now — try again in a moment.");
@@ -136,7 +142,14 @@ export default function WeeklyPlan({ weekPlan: weekPlanProp }) {
       <style>{`@keyframes whpulse{0%,100%{opacity:0.55}50%{opacity:0.9}}`}</style>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-        <div style={{ fontFamily: serif, fontSize: 28, fontStyle: "italic", color: "#5a4049" }}>This Week</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontFamily: serif, fontSize: 28, fontStyle: "italic", color: "#5a4049" }}>This Week</div>
+          {fromCache && (
+            <span style={{ fontFamily: sans, fontSize: 11, color: "#7a9e78", background: "rgba(158,184,154,0.14)", borderRadius: 999, padding: "3px 10px" }}>
+              Generated Friday
+            </span>
+          )}
+        </div>
         <button
           type="button"
           onClick={generate}
