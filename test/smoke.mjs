@@ -61,7 +61,7 @@ function stopDev() { try { dev.kill("SIGTERM"); } catch {} }
 
 let browser;
 const pageErrors = [];
-const result = { rendered: false, launcher: false, overlay: false, generateBtn: false, gracefulError: false };
+const result = { rendered: false, launcher: false, overlay: false, generateBtn: false, gracefulError: false, healRedirect: false };
 try {
   try {
     browser = await chromium.launch({ args: ["--no-sandbox"] });
@@ -103,6 +103,40 @@ try {
     }
   }
   console.log("Screenshots:", shotDir);
+
+  // Self-heal: a forced /api/* 401 on a "logged-in" UI must bounce back to the
+  // login screen (covers the stale-cookie dead end). Fresh context, no init
+  // script, so after the heal reload the unlock flag stays cleared.
+  const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p2 = await ctx2.newPage();
+  await p2.route("**/api/agent", (route) =>
+    route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_authorized" }) }));
+  await p2.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await p2.evaluate(() => sessionStorage.setItem("wh_unlocked", "1"));
+  await p2.reload({ waitUntil: "networkidle" });
+  await p2.waitForTimeout(1500);
+  const l2 = p2.getByRole("button", { name: /this week/i });
+  if (await l2.count()) {
+    await l2.first().click();
+    await p2.waitForTimeout(500);
+    const g2 = p2.getByRole("button", { name: /generate this week/i });
+    if (await g2.count()) {
+      // Watch for the heal's reload navigation triggered by the forced 401.
+      let reloaded = false;
+      p2.on("framenavigated", (f) => { if (f === p2.mainFrame()) reloaded = true; });
+      await g2.first().click();
+      // The heal contract: on a /api/* 401 it clears wh_unlocked and reloads to
+      // the login screen. Poll for the flag clearing (only the heal does that).
+      let unlocked = "1";
+      for (let i = 0; i < 16; i++) {
+        await p2.waitForTimeout(400);
+        try { unlocked = await p2.evaluate(() => sessionStorage.getItem("wh_unlocked")); } catch {}
+        if (unlocked === null) break;
+      }
+      result.healRedirect = unlocked === null && reloaded;
+    }
+  }
+  await ctx2.close();
 } catch (e) {
   console.error("INTERACTION ERROR:", String(e));
 } finally {
@@ -117,6 +151,7 @@ const checks = [
   ["planner overlay opens", result.overlay],
   ["Generate button present", result.generateBtn],
   ["graceful soft-error when API unreachable", result.gracefulError],
+  ["stale session (401) self-heals to login screen", result.healRedirect],
 ];
 let failed = 0;
 console.log("\n== browser smoke ==");
