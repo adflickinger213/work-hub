@@ -2932,6 +2932,7 @@ async function generateRoadmap(items, energy, mood, note) {
         throw new Error("Rosie's response wasn't valid JSON.");
       }
     }
+    console.log("ROSIE RAW RESULT:", JSON.stringify(parsed, null, 2));
     if (!parsed || !Array.isArray(parsed.slots) || parsed.slots.length === 0) {
       console.warn("[generateRoadmap] response had no slots:", parsed);
       throw new Error("Rosie didn't generate any slots.");

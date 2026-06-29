@@ -156,6 +156,7 @@ export default async function handler(req, res) {
   }
 
   // --- assemble the user message, fencing untrusted content ---
+  console.log("AGENT RECEIVED externalContent:", JSON.stringify(externalContent, null, 2));
   let userContent = instruction;
   if (externalContent !== undefined && externalContent !== null) {
     userContent += "\n\n" + wrapExternalContent(externalContent);

@@ -127,6 +127,7 @@ export default function WeeklyPlan({ weekPlan: weekPlanProp }) {
       : null;
     const tasks = (bridged && bridged.length) ? bridged : (loadStore(STORAGE_KEYS.tasks) || []);
     const result = await sage.generateWeekPlan(capacity, tasks, null);
+    console.log("SAGE RAW RESULT:", JSON.stringify(result, null, 2));
     if (result) {
       setPlan(result);
       setFromCache(false);
