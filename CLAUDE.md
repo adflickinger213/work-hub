@@ -43,12 +43,38 @@ They are NOT ES modules.
 
 1. Edit the relevant module in `src/`.
 2. `npm run ship` — bundles to `dist/work-hub.bundle.jsx` and runs the verify
-   gate (strict parse + landmine baseline). **Must say PASS before you're done.**
-3. `git add . && git commit -m "..." && git push`.
-4. When you want the live app updated: copy `dist/work-hub.bundle.jsx` and paste
+   gate (strict parse + landmine baseline + component check + the `test/qa.mjs`
+   logic/security suite). **Must say PASS before you're done.**
+3. `npm run verify` — runs `ship` PLUS the browser smoke test
+   (`test/smoke.mjs`). **Run this before declaring any change done.** It boots
+   the real app and checks it renders with zero JS errors and the key flows work.
+4. `git add . && git commit -m "..." && git push`.
+5. When you want the live app updated: copy `dist/work-hub.bundle.jsx` and paste
    it back into the Claude.ai artifact.
 
 `dist/` and `node_modules/` are gitignored — never commit them.
+
+## Testing is part of the gate (do not skip)
+
+Accuracy + pressure-testing for bugs/breaks runs **every time**, built into the
+scripts above. Never declare work done on unverified code.
+
+- `npm test` → `test/qa.mjs`: exercises the REAL `lib/`, `api/`, and
+  `src/hooks/` modules with mocked globals (no network). Covers session-auth
+  security (forged/expired/tampered tokens), prompt-injection fencing,
+  storage + v4 migration, Friday/Monday pre-gen gating, Poppy/Hazel logic, and
+  every API handler (auth gating, validation, anomaly detection, **no
+  key/secret leakage**, rate limiting, login lockout). Exits non-zero on any
+  failure. **It's wired into `npm run ship`, so it runs on every ship.**
+- `npm run test:smoke` → `test/smoke.mjs`: boots the app in a headless browser
+  at 390px, asserts it renders with zero unhandled JS errors, the weekly-prep
+  launcher opens the planner, and Generate degrades to a soft error (no crash)
+  when the API is unreachable. Skips cleanly if no browser is available; real UI
+  breakage fails. Part of `npm run verify`.
+
+When you add a feature, **add matching cases to `test/qa.mjs`** (and a smoke
+assertion if it has UI). The suite is the safety net — grow it, don't route
+around it.
 
 ## The verify gate (landmines)
 
