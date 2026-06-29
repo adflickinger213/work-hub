@@ -3633,6 +3633,16 @@ export default function App() {
   // Agent panel — null when closed, agentId string when open
   const [openAgent, setOpenAgent] = useState(null);
 
+  // Publish the live app data to the ESM bridge (set up in main.jsx) so the
+  // out-of-tree weekly-prep launcher can read the real items/tasks without
+  // importing into this concatenated bundle. Read-only snapshot; updated on
+  // every data change.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.__workhub) {
+      window.__workhub.currentData = data;
+    }
+  }, [data]);
+
   // Weekly observations trigger — runs Monday mornings (or first day Lexy
   // opens the app each week if she misses Monday). Gates on weekOf so it
   // only runs once per week. Won't fire if no meaningful activity to review.
