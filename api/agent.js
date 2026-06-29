@@ -131,14 +131,14 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { agentName, instruction, externalContent } = req.body || {};
+  const { agentName, instruction, externalContent, systemOverride } = req.body || {};
 
   // --- validate agent ---
   if (typeof agentName !== "string" || !AGENT_PERMISSIONS[agentName]) {
     res.status(400).json({ ok: false, error: "unknown_agent", anomalous: false });
     return;
   }
-  const systemPrompt = SYSTEM_PROMPTS[agentName];
+  const systemPrompt = (typeof systemOverride === "string" && systemOverride.trim()) ? systemOverride : SYSTEM_PROMPTS[agentName];
   const model = AGENT_MODELS[agentName];
   if (!systemPrompt || !model) {
     res.status(500).json({ ok: false, error: "agent_misconfigured", anomalous: false });
