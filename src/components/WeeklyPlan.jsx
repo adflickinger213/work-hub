@@ -121,7 +121,11 @@ export default function WeeklyPlan({ weekPlan: weekPlanProp }) {
     setLoading(true);
     setError("");
     const capacity = loadStore(STORAGE_KEYS.capacityState);
-    const tasks = loadStore(STORAGE_KEYS.tasks) || [];
+    // Prefer the live app's real items (via the bridge); fall back to storage.
+    const bridged = (typeof window !== "undefined" && window.__workhub && typeof window.__workhub.getTasks === "function")
+      ? window.__workhub.getTasks()
+      : null;
+    const tasks = (bridged && bridged.length) ? bridged : (loadStore(STORAGE_KEYS.tasks) || []);
     const result = await sage.generateWeekPlan(capacity, tasks, null);
     if (result) {
       setPlan(result);

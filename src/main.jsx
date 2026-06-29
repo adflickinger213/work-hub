@@ -7,6 +7,7 @@ import "./storage-shim.js";
 import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import App from "../dist/work-hub.bundle.jsx";
+import WeekPrepLauncher from "./components/WeekPrepLauncher.jsx";
 import { migrateFromV4, saveStore, loadStore, STORAGE_KEYS } from "../lib/storage.js";
 
 // One-time, idempotent migration of the old work-hub-v4 blob into the new
@@ -18,6 +19,32 @@ migrateFromV4();
 // artifact persists Rosie chat sessions by calling window.__workhub.saveSession.
 if (typeof window !== "undefined") {
   window.__workhub = window.__workhub || {};
+
+  // Expose the app's real, active items as Sage-friendly tasks. Reads the live
+  // snapshot published by App (window.__workhub.currentData). Active = not done,
+  // not parked/cancelled. Keeps the agent layer working off real data instead
+  // of the empty lib/storage key.
+  window.__workhub.getTasks = function getTasks() {
+    try {
+      const d = window.__workhub.currentData;
+      const items = (d && Array.isArray(d.items)) ? d.items : [];
+      return items
+        .filter((it) => {
+          const s = (it.status || "todo").toLowerCase();
+          return s !== "done" && s !== "complete" && s !== "completed" && s !== "parked" && s !== "cancelled";
+        })
+        .map((it) => ({
+          id: it.id,
+          name: it.title || it.name || "Untitled",
+          why: it.why || "",
+          status: it.status || "todo",
+          subtasks: Array.isArray(it.tasks) ? it.tasks : [],
+        }));
+    } catch {
+      return [];
+    }
+  };
+
   window.__workhub.saveSession = function saveSession(session) {
     try {
       const prev = loadStore(STORAGE_KEYS.sessions) || [];
@@ -63,7 +90,12 @@ function AuthGate() {
     }
   }
 
-  if (unlocked) return <App />;
+  if (unlocked) return (
+    <>
+      <App />
+      <WeekPrepLauncher />
+    </>
+  );
 
   const wrap = {
     minHeight: "100vh",
