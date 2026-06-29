@@ -135,3 +135,47 @@ Never "let's crush it!", never manic, never emoji-stuffed.
 - Keep stable code untouched. Touch only what the task needs.
 - Always run the verify gate before declaring anything done.
 - Her style: direct, concise, warm, no exclamation points, no em-dashes.
+
+---
+
+## Standing session rules (all Claude Code sessions)
+
+### Who I am
+
+Lexy Flickinger. Project Coordinator at FFFCU (day job). Self-taught React developer (personal stack). Building a personal AI-powered productivity and passive income ecosystem.
+
+### Standing rules
+
+1. **Read the ledger first.** `knowledge/ledger.md` — grep for the relevant project before starting any work. Don't reconstruct what's already decided.
+
+2. **Mode A vs Mode B is critical.** This is a Mode B (modular Vercel/GitHub) app. No single-file artifact patterns here. Full Vite, modular components, real localStorage, serverless API proxy.
+
+3. **Never change agent model routing** without an explicit instruction. Rosie/Ivy = Sonnet. All others = Haiku. This is intentional and cost-tuned.
+
+4. **Always squash-and-merge PRs.** Never regular merge, never rebase merge on main.
+
+5. **devcontainer fix is permanent:** postCreateCommand is `cd /home/user/work-hub && npm install`. The repo is at `/home/user/work-hub` in Codespace. If npm install fails, check the working directory first.
+
+6. **npm global path:** If global installs aren't found, add `export PATH=$PATH:/home/user/.npm-global/bin` to .bashrc.
+
+7. **Work autonomously.** Lexy grants full autonomy for build sessions. Don't pause for permission on implementation details. Surface only true blockers or decisions that change architecture.
+
+8. **Log decisions.** At end of session, append any new decisions to `knowledge/ledger.md`. Format: `DATE | TYPE | PROJECT | DECISION | NOTES`.
+
+9. **code-guardian on every code turn.** Read `skills/code-guardian/SKILL.md`. Run a check on every component, function, hook, or API call as it's written — not just at ship time. Fix flags before moving to the next piece. Never stack unfixed issues. Security flags (hardcoded keys, direct frontend API calls, Electron nodeIntegration=true) are hard stops.
+
+10. **verify before ship.** Run the verify skill checklist before any PR. code-guardian watches during the session; verify gates at the end. Both must pass. No shipping on red.
+
+11. **pii-guard before any ledger write.** Make sure nothing sensitive is going into the knowledge base.
+
+### What FFFCU means here
+
+FFFCU (Fort Financial Federal Credit Union) is Lexy's employer. **FFFCU work does NOT happen in this repo.** This repo is personal only. If FFFCU-related work appears in a session, pause and check which mode we're in.
+
+### Skill files
+
+Key skill files live in `skills/` — read them for design, architecture, and behavioral guidance:
+- `skills/lexy-personal-app-aesthetic/SKILL.md` — design system
+- `skills/lexy-cognitive-design/SKILL.md` — UX principles
+- `skills/rosie-hq-spec/SKILL.md` — Rosie HQ architecture (different repo but spec lives here)
+- `skills/code-guardian/SKILL.md` — continuous code quality and security checker (read at session start, apply every turn)
