@@ -8,7 +8,10 @@
     "bundle": "node bundle.js",
     "check": "node check-landmines.js",
     "components": "node check-components.js",
-    "ship": "node bundle.js && node check-landmines.js && node check-components.js",
+    "test": "node test/qa.mjs",
+    "test:smoke": "node test/smoke.mjs",
+    "ship": "node bundle.js && node check-landmines.js && node check-components.js && node test/qa.mjs",
+    "verify": "npm run ship && npm run test:smoke",
     "dev": "npm run bundle && vite",
     "build": "npm run bundle && vite build",
     "preview": "vite preview"
@@ -21,6 +24,7 @@
   "devDependencies": {
     "@babel/parser": "^7.24.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "playwright-core": "^1.48.0",
     "vite": "^5.4.0"
   }
 }
