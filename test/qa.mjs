@@ -215,12 +215,12 @@ async function main() {
   const goodToken = auth.signSession(SECRET, 3600);
   const cookie = `wh_auth=${encodeURIComponent(goodToken)}`;
 
-  // mock fetch (anthropic)
+  // mock fetch (anthropic + /api/agent proxy)
   let nextAnthropic = { content: [{ type: "text", text: '{"weekPlan":{"mon":[]},"sageNote":"ok"}' }] };
   let fetchShouldThrow = false;
   globalThis.fetch = async () => {
     if (fetchShouldThrow) throw new Error("network down");
-    return { json: async () => nextAnthropic, status: 200 };
+    return { ok: true, json: async () => nextAnthropic, status: 200 };
   };
 
   // unauth
@@ -288,6 +288,67 @@ async function main() {
   r = mockRes();
   await rosie({ method: "POST", headers: { "x-forwarded-for": "12.0.0.2", cookie }, body: { messages: [{ role: "user", content: "hi" }] } }, r);
   ok("rosie failure surfaces non-2xx", r.statusCode >= 400 && !!r.body.error);
+
+  // =========================================================
+  section("lib/agentOrchestrator — runSageRebalance + runEODChain");
+  freshLocalStorage();
+  const orch = await import(ROOT + "/lib/agentOrchestrator.js");
+
+  // Override fetch for orchestrator tests: these call /api/agent (the proxy),
+  // so the mock must return the proxy's response shape { ok, data }, not the
+  // raw Anthropic shape used by the api/agent handler tests above.
+  const savedFetch = globalThis.fetch;
+  let orchFetchThrow = false;
+  let orchNextPayload = { ok: true, data: { weekPlan: { wed: [], thu: [], fri: [] }, sageNote: "rebalanced" }, anomalous: false };
+  globalThis.fetch = async () => {
+    if (orchFetchThrow) throw new Error("network down");
+    return { ok: true, json: async () => orchNextPayload };
+  };
+
+  // runSageRebalance — Sage success path
+  const rebalanceResult = await orch.runSageRebalance(
+    ["id1"],
+    [{ id: "id1", title: "Done task" }, { id: "id2", title: "Pending task" }],
+    "medium"
+  );
+  ok("runSageRebalance ok:true on success", rebalanceResult.ok === true);
+  ok("runSageRebalance returns sageNote", typeof rebalanceResult.sageNote === "string");
+  ok("runSageRebalance returns updatedWeekPlan object", rebalanceResult.updatedWeekPlan !== null && typeof rebalanceResult.updatedWeekPlan === "object");
+
+  // runSageRebalance — network failure returns ok:false, never throws
+  orchFetchThrow = true;
+  const rebalanceFail = await orch.runSageRebalance([], [], null);
+  ok("runSageRebalance ok:false on network error, no throw", rebalanceFail.ok === false && typeof rebalanceFail.error === "string");
+  orchFetchThrow = false;
+
+  // runEODChain — completes all 3 steps, never throws
+  orchNextPayload = { ok: true, data: { weekPlan: { wed: [] }, sageNote: "ok" }, anomalous: false };
+  const chainResult = await orch.runEODChain({
+    completedTasks: ["id1"],
+    incompleteTasks: [{ id: "id2", title: "Pending" }],
+    waitingOn: [],
+    slots: [],
+    capacityState: "medium",
+  });
+  ok("runEODChain returns result object", chainResult && typeof chainResult === "object");
+  ok("runEODChain always has sageResult", chainResult.sageResult && typeof chainResult.sageResult === "object");
+  ok("runEODChain always has snapshotResult", chainResult.snapshotResult && typeof chainResult.snapshotResult === "object");
+
+  // runEODChain — chain survives total network failure (all steps fail gracefully)
+  orchFetchThrow = true;
+  const chainFail = await orch.runEODChain({
+    completedTasks: [],
+    incompleteTasks: [],
+    waitingOn: [],
+    slots: [],
+    capacityState: null,
+  });
+  ok("runEODChain completes even on total network failure", chainFail && typeof chainFail === "object");
+  ok("runEODChain ok:false when all steps fail", chainFail.ok === false);
+  orchFetchThrow = false;
+
+  // Restore the original api/agent mock for subsequent tests.
+  globalThis.fetch = savedFetch;
 
   // =========================================================
   section("api/push-subscribe — auth + shape validation");

@@ -18,46 +18,46 @@ function loadScrolls() {
   return s && typeof s === "object" ? s : {};
 }
 
-export function useIvy() {
-  async function runWeeklySynthesis(agentScrolls, weekHistory) {
-    try {
-      const res = await fetch("/api/agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          agentName: "ivy",
-          instruction:
-            "Synthesize the week. Review the agent scrolls and week history and " +
-            "propose small scroll updates. Return JSON: { proposals: [{ id, " +
-            "scroll, change, why, learning }], conflicts: [{ summary, " +
-            "resolution }], pruneWarnings: [] }.",
-          externalContent: wrapExternalContent(
-            { agentScrolls: agentScrolls || loadScrolls(), weekHistory: weekHistory || [] },
-            "scrolls + history"
-          ),
-        }),
-      });
-      if (!res.ok) return null;
-      const payload = await res.json();
-      if (!payload || !payload.ok || payload.anomalous) return null;
-      const data = payload.data || {};
+export async function runWeeklySynthesis(agentScrolls, weekHistory) {
+  try {
+    const res = await fetch("/api/agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        agentName: "ivy",
+        instruction:
+          "Synthesize the week. Review the agent scrolls and week history and " +
+          "propose small scroll updates. Return JSON: { proposals: [{ id, " +
+          "scroll, change, why, learning }], conflicts: [{ summary, " +
+          "resolution }], pruneWarnings: [] }.",
+        externalContent: wrapExternalContent(
+          { agentScrolls: agentScrolls || loadScrolls(), weekHistory: weekHistory || [] },
+          "scrolls + history"
+        ),
+      }),
+    });
+    if (!res.ok) return null;
+    const payload = await res.json();
+    if (!payload || !payload.ok || payload.anomalous) return null;
+    const data = payload.data || {};
 
-      // Persist any returned proposals so they survive a reload.
-      if (Array.isArray(data.proposals)) {
-        const existing = loadProposals();
-        const merged = [...existing];
-        for (const p of data.proposals) {
-          if (p && p.id && !merged.some((e) => e.id === p.id)) merged.push(p);
-        }
-        saveStore(STORAGE_KEYS.ivyProposals, merged);
+    if (Array.isArray(data.proposals)) {
+      const existing = loadProposals();
+      const merged = [...existing];
+      for (const p of data.proposals) {
+        if (p && p.id && !merged.some((e) => e.id === p.id)) merged.push(p);
       }
-      return data;
-    } catch (err) {
-      console.error("[work-hub] runWeeklySynthesis failed:", err?.message ?? err);
-      return null;
+      saveStore(STORAGE_KEYS.ivyProposals, merged);
     }
+    return data;
+  } catch (err) {
+    console.error("[work-hub] runWeeklySynthesis failed:", err?.message ?? err);
+    return null;
   }
+}
+
+export function useIvy() {
 
   function getPendingProposals() {
     return loadProposals();

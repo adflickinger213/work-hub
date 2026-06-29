@@ -9,6 +9,7 @@ import ReactDOM from "react-dom/client";
 import App from "../dist/work-hub.bundle.jsx";
 import WeekPrepLauncher from "./components/WeekPrepLauncher.jsx";
 import { migrateFromV4, saveStore, loadStore, STORAGE_KEYS } from "../lib/storage.js";
+import { runEODChain } from "../lib/agentOrchestrator.js";
 
 // Self-heal stale/invalid sessions. The login "unlocked" flag lives in
 // sessionStorage (UI state), but the real auth is the httpOnly cookie checked
@@ -71,6 +72,8 @@ if (typeof window !== "undefined") {
       return [];
     }
   };
+
+  window.__workhub.runEODChain = runEODChain;
 
   window.__workhub.saveSession = function saveSession(session) {
     try {

@@ -3805,6 +3805,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [showEOD, setShowEOD] = useState(false);
+  const [eodChainWrapped, setEodChainWrapped] = useState(false);
   const [showRoadmapHistory, setShowRoadmapHistory] = useState(false);
   // Parked items dashboard — modal accessed via the "⛵ Parked (N)" pill in
   // the Overview header. Shows resurface dates + per-item actions.
@@ -4798,6 +4799,26 @@ export default function App() {
           setShowEOD(false);
           setScreen("checkin");
           setFocusItem(null);
+          // Fire EOD agent chain in the background — no loading state, invisible to user.
+          try {
+            const startOfTodayMs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+            const todayData = {
+              completedTasks: (data.items || [])
+                .filter(i => i.status === "done" && i.completedAt && i.completedAt >= startOfTodayMs)
+                .map(i => i.id),
+              incompleteTasks: (data.items || [])
+                .filter(i => i && i.status !== "done" && i.status !== "parked" && i.status !== "cancelled"),
+              waitingOn: (data.items || []).filter(i => i && i.status === "waiting"),
+              slots: roadmap ? (roadmap.slots || []) : [],
+              capacityState: data.capacityState || null,
+            };
+            if (typeof window !== "undefined" && window.__workhub && typeof window.__workhub.runEODChain === "function") {
+              window.__workhub.runEODChain(todayData).then(() => {
+                setEodChainWrapped(true);
+                setTimeout(() => setEodChainWrapped(false), 4000);
+              }).catch(() => {});
+            }
+          } catch (e) { /* EOD chain best-effort */ }
         }}
         onDismiss={() => {
           // Soft dismiss — keep eodRef.current set to today so the auto-check
@@ -5217,6 +5238,26 @@ export default function App() {
           </div>
         );
       })()}
+
+      {eodChainWrapped && (
+        <div
+          className="jost"
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            background: "rgba(158,184,154,0.92)",
+            color: "#fff",
+            borderRadius: 10,
+            padding: "6px 14px",
+            fontSize: 12,
+            zIndex: 200,
+            fontWeight: 500,
+            animation: "savedAnim 4s ease forwards",
+            pointerEvents: "none",
+          }}
+        >day wrapped ✓</div>
+      )}
     </div>
   );
 }
