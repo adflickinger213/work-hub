@@ -10,6 +10,33 @@ import App from "../dist/work-hub.bundle.jsx";
 import WeekPrepLauncher from "./components/WeekPrepLauncher.jsx";
 import { migrateFromV4, saveStore, loadStore, STORAGE_KEYS } from "../lib/storage.js";
 
+// Self-heal stale/invalid sessions. The login "unlocked" flag lives in
+// sessionStorage (UI state), but the real auth is the httpOnly cookie checked
+// server-side. If the cookie is missing, expired, or left over from an older
+// version (e.g. the pre-HMAC cookie that stored the raw password), every
+// /api/* call returns 401 while the UI still looks logged in — a confusing
+// dead end. This wrapper watches for that: on any same-origin /api/* 401 (other
+// than the login call itself), it drops the unlock flag and bounces to the login
+// screen, where a fresh login mints a valid token that overwrites the stale
+// cookie. Installed before the app boots so it covers every fetch.
+if (typeof window !== "undefined" && typeof window.fetch === "function" && !window.__whAuthHeal) {
+  window.__whAuthHeal = true;
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const res = await realFetch(...args);
+    try {
+      const input = args[0];
+      const url = typeof input === "string" ? input : (input && input.url) || "";
+      const isApi = url.includes("/api/") && !url.includes("/api/login");
+      if (res.status === 401 && isApi && sessionStorage.getItem("wh_unlocked") === "1") {
+        sessionStorage.removeItem("wh_unlocked");
+        if (!window.__whReloading) { window.__whReloading = true; location.reload(); }
+      }
+    } catch {}
+    return res;
+  };
+}
+
 // One-time, idempotent migration of the old work-hub-v4 blob into the new
 // storage schema. Safe to call on every boot.
 migrateFromV4();
