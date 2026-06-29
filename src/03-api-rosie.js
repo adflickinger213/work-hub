@@ -2788,6 +2788,7 @@ async function generateRoadmap(items, energy, mood, note) {
     : null;
 
   const systemPrompt = [
+    "CRITICAL: Respond with raw JSON only. No conversation, no questions, no markdown. If no tasks exist return an empty slots array.",
     "You are Rosie, building a realistic morning work roadmap for Lexy (Project Coordinator, Implementation team at Fort Financial Credit Union in Fort Wayne, IN). Lexy has ADHD/autism/bipolar and needs structured but forgiving days.",
     "",
     "Return ONLY a JSON object, no markdown, no preamble. Shape:",

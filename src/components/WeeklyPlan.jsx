@@ -25,9 +25,26 @@ const serif = "'Cormorant Garamond', Georgia, serif";
 const sans = "'Jost', system-ui, sans-serif";
 const SAGE = "#7a9e78";
 
+function normalizeDayKeys(weekPlan) {
+  if (!weekPlan || typeof weekPlan !== "object") return {};
+  const MAP = {
+    mon: "mon", monday: "mon",
+    tue: "tue", tuesday: "tue",
+    wed: "wed", wednesday: "wed",
+    thu: "thu", thursday: "thu",
+    fri: "fri", friday: "fri",
+  };
+  const out = {};
+  for (const [k, v] of Object.entries(weekPlan)) {
+    const norm = MAP[k.toLowerCase().trim()];
+    if (norm) out[norm] = v;
+  }
+  return out;
+}
+
 function normalizeTask(t) {
   if (typeof t === "string") return { name: t, duration: "" };
-  return { name: t?.name || t?.title || "Untitled", duration: t?.duration || t?.estimate || "" };
+  return { name: t?.name || t?.title || t?.action || "Untitled", duration: t?.duration || t?.estimate || t?.type || "" };
 }
 
 function TaskCard({ task, steps }) {
@@ -110,7 +127,7 @@ export default function WeeklyPlan({ weekPlan: weekPlanProp }) {
     if (isMonday()) {
       const served = runMorningServe();
       if (served.fromCache && served.weekPlan) {
-        setPlan(served.weekPlan);
+        setPlan(served);
         setFromCache(true);
       }
     }
@@ -128,7 +145,8 @@ export default function WeeklyPlan({ weekPlan: weekPlanProp }) {
     const tasks = (bridged && bridged.length) ? bridged : (loadStore(STORAGE_KEYS.tasks) || []);
     const result = await sage.generateWeekPlan(capacity, tasks, null);
     if (result) {
-      setPlan(result);
+      const normalized = { ...result, weekPlan: normalizeDayKeys(result.weekPlan) };
+      setPlan(normalized);
       setFromCache(false);
       sage.saveToCache(result);
     } else {

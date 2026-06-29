@@ -82,6 +82,7 @@ export default async function handler(req, res) {
     agentName: "rosie",
     instruction: body.instruction || lastUserText(body.messages) || "",
     externalContent: body.externalContent,
+    systemOverride: body.system,
   };
 
   const { cap, res: capRes } = makeCapture();

@@ -17,12 +17,19 @@ import { loadStore, STORAGE_KEYS } from "../../lib/storage.js";
 export function useSage() {
   async function generateWeekPlan(capacityState, tasks, peakFocusWindow) {
     try {
+      const taskCount = Array.isArray(tasks) ? tasks.length : 0;
       const instruction =
         `Build Lexy's week plan (Mon-Fri).\n` +
         `Current capacity: ${capacityState || "unspecified"}.\n` +
         `Peak focus window: ${peakFocusWindow || "unspecified"}.\n` +
-        `Return JSON: { weekPlan: { mon, tue, wed, thu, fri }, ` +
-        `taskDecompositions, capacityNotes, sageNote }.`;
+        `There are ${taskCount} tasks/items in the task list below. ` +
+        `Distribute ALL of them across the five weekdays — every task must appear in at least one day's array. ` +
+        `For each task include a realistic duration estimate (e.g. "30m", "1h", "2h"). ` +
+        `Return ONLY a raw JSON object (no markdown fences, no preamble) matching this exact schema: ` +
+        `{ "weekPlan": { "mon": [...], "tue": [...], "wed": [...], "thu": [...], "fri": [...] }, ` +
+        `"taskDecompositions": { "<task name>": ["step1", "step2"] }, ` +
+        `"capacityNotes": { "<day>": "<optional note>" }, ` +
+        `"sageNote": "<1-2 sentence strategic observation>" }.`;
 
       const res = await fetch("/api/agent", {
         method: "POST",
