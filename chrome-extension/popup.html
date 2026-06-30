@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Router</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="header">
+    <span class="logo">🎯 Project Router</span>
+    <nav class="tabs">
+      <button class="tab active" data-tab="pending">Pending</button>
+      <button class="tab" data-tab="stats">Stats</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </nav>
+  </div>
+
+  <!-- PENDING TAB -->
+  <div id="pending" class="pane active">
+    <div id="pending-list"></div>
+  </div>
+
+  <!-- STATS TAB -->
+  <div id="stats" class="pane">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-num" id="s-total">0</div>
+        <div class="stat-lbl">Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="s-auto">0</div>
+        <div class="stat-lbl">Auto-Routed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="s-manual">0</div>
+        <div class="stat-lbl">Manual</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="s-week">0</div>
+        <div class="stat-lbl">This Week</div>
+      </div>
+    </div>
+    <div class="section-title">By Project (this week)</div>
+    <div id="project-bars"></div>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div id="settings" class="pane">
+    <div class="settings-card">
+      <h3>Data</h3>
+      <p class="help">Routing history is auto-purged after 30 days.</p>
+      <button id="clear-btn" class="btn-danger">Clear All History</button>
+    </div>
+  </div>
+
+  <!-- PROJECT PICKER MODAL -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <h3>Choose a project</h3>
+      <div id="modal-options"></div>
+      <button class="btn-ghost" id="modal-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <script src="routing-rules.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
