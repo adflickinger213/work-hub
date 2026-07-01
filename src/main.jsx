@@ -190,6 +190,7 @@ function AuthGate() {
             value={pw}
             onChange={(e) => setPw(e.target.value)}
             placeholder="Password"
+            aria-label="Password"
             autoFocus
             style={input}
           />
@@ -198,7 +199,7 @@ function AuthGate() {
           </button>
         </form>
         {err && (
-          <div style={{ fontSize: 12, color: "#b8607c", marginTop: 12 }}>{err}</div>
+          <div role="alert" style={{ fontSize: 12, color: "#b8607c", marginTop: 12 }}>{err}</div>
         )}
       </div>
     </div>

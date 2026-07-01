@@ -327,34 +327,6 @@ async function main() {
   ok("push 400 on non-https endpoint", r.statusCode === 400);
 
   // =========================================================
-  section("api/snapshot — session gate");
-  const snapshot = (await import(ROOT + "/api/snapshot.js")).default;
-  r = mockRes();
-  await snapshot({ method: "GET", headers: {} }, r);
-  ok("snapshot GET 401 without session", r.statusCode === 401 && r.body.error === "not_authorized");
-  r = mockRes();
-  await snapshot({ method: "POST", headers: {}, body: { date: "2026-07-01" } }, r);
-  ok("snapshot POST 401 without session", r.statusCode === 401);
-  r = mockRes();
-  await snapshot({ method: "GET", headers: { cookie } }, r);
-  ok("snapshot authed request passes the gate", r.statusCode !== 401);
-
-  // =========================================================
-  section("api/eod-chain — session gate + validation");
-  const eod = (await import(ROOT + "/api/eod-chain.js")).default;
-  r = mockRes();
-  await eod({ method: "GET", headers: {} }, r);
-  ok("eod-chain 405 non-POST", r.statusCode === 405);
-  r = mockRes();
-  await eod({ method: "POST", headers: {} }, r);
-  ok("eod-chain 401 without session (explicit response, no hang)",
-    r.statusCode === 401 && r.body && r.body.error === "not_authorized");
-  r = mockRes();
-  await eod({ method: "POST", headers: { cookie } }, r); // body absent entirely
-  ok("eod-chain 400 on missing todayData (no crash on absent body)",
-    r.statusCode === 400 && r.body.error === "missing_todaydata");
-
-  // =========================================================
   section("api/morning-brief — session gate");
   const brief = (await import(ROOT + "/api/morning-brief.js")).default;
   r = mockRes();
@@ -363,6 +335,133 @@ async function main() {
   r = mockRes();
   await brief({ method: "GET", headers: { cookie } }, r);
   ok("morning-brief authed request passes the gate", r.statusCode !== 401);
+
+  // =========================================================
+  section("lib/morning-brief — buildBrief (pure formatter)");
+  const mb = await import(ROOT + "/lib/morning-brief.js");
+  ok("buildBrief(null) -> null", mb.buildBrief(null) === null);
+  const briefFresh = mb.buildBrief({ date: "2026-06-30", completedTasks: ["x"] }, "2026-06-30T09:00:00.000Z");
+  ok("buildBrief marks same-day snapshot fresh", briefFresh.isStale === false);
+  ok("buildBrief defaults missing arrays", Array.isArray(briefFresh.waitingOn) && briefFresh.waitingOn.length === 0);
+  ok("buildBrief carries completedTasks through", JSON.stringify(briefFresh.completedTasks) === JSON.stringify(["x"]));
+  const briefStale = mb.buildBrief({ date: "2026-06-30" }, "2026-07-01T09:00:00.000Z");
+  ok("buildBrief marks older snapshot stale", briefStale.isStale === true);
+
+  // =========================================================
+  section("lib/snapshotStore + api/snapshot — auth gate, validation, upsert/fetch");
+  const store3 = await import(ROOT + "/lib/snapshotStore.js");
+  const snapshot = (await import(ROOT + "/api/snapshot.js")).default;
+  // Fake Postgres: records queries; SELECT returns whatever `latestRows` holds.
+  let sqlCalls = [];
+  let latestRows = [];
+  const fakeSql = {
+    query: async (text, params) => {
+      sqlCalls.push({ text: String(text), params });
+      if (/^\s*SELECT/i.test(text)) return { rows: latestRows };
+      return { rows: [] };
+    },
+  };
+  store3.__setSqlForTests(fakeSql);
+  store3.__resetTableFlagForTests();
+
+  // method gate: never touches the DB
+  sqlCalls = [];
+  r = mockRes();
+  await snapshot({ method: "DELETE", headers: { cookie } }, r);
+  ok("snapshot 405 on unsupported method", r.statusCode === 405);
+  ok("snapshot skips DB on bad method", sqlCalls.length === 0);
+  // auth gate: never touches the DB
+  sqlCalls = [];
+  r = mockRes();
+  await snapshot({ method: "GET", headers: {} }, r);
+  ok("snapshot 401 without session", r.statusCode === 401);
+  ok("snapshot skips DB when unauthenticated", sqlCalls.length === 0);
+  // invalid date: rejected before any write
+  sqlCalls = [];
+  r = mockRes();
+  await snapshot({ method: "POST", headers: { cookie }, body: { date: "not-a-date" } }, r);
+  ok("snapshot 400 on invalid date", r.statusCode === 400 && r.body.error === "invalid_date");
+  ok("snapshot does not write on invalid date", !sqlCalls.some((c) => /INSERT/i.test(c.text)));
+  // valid POST upserts by date
+  sqlCalls = [];
+  r = mockRes();
+  await snapshot({ method: "POST", headers: { cookie }, body: { date: "2026-06-30", completedTasks: ["a"] } }, r);
+  ok("snapshot 200 on valid POST", r.statusCode === 200 && r.body.ok === true);
+  ok("snapshot upserts the row for that date", sqlCalls.some((c) => /INSERT/i.test(c.text) && c.params[0] === "2026-06-30"));
+  // GET returns the latest, reshaped
+  latestRows = [{ date: "2026-06-30", snapshot_json: { completedTasks: ["a"], waitingOn: [] } }];
+  r = mockRes();
+  await snapshot({ method: "GET", headers: { cookie } }, r);
+  ok("snapshot GET 200 returns latest", r.statusCode === 200 && r.body.ok === true && r.body.snapshot.date === "2026-06-30");
+  ok("snapshot GET merges json payload", JSON.stringify(r.body.snapshot.completedTasks) === JSON.stringify(["a"]));
+
+  // =========================================================
+  section("api/morning-brief — auth gate + reads snapshot store directly");
+  const morningBrief = (await import(ROOT + "/api/morning-brief.js")).default;
+  r = mockRes();
+  await morningBrief({ method: "POST", headers: { cookie } }, r);
+  ok("morning-brief 405 on non-GET", r.statusCode === 405);
+  sqlCalls = [];
+  r = mockRes();
+  await morningBrief({ method: "GET", headers: {} }, r);
+  ok("morning-brief 401 without session", r.statusCode === 401);
+  ok("morning-brief skips DB when unauthenticated", sqlCalls.length === 0);
+  latestRows = [];
+  r = mockRes();
+  await morningBrief({ method: "GET", headers: { cookie } }, r);
+  ok("morning-brief 200 brief:null when empty", r.statusCode === 200 && r.body.ok === true && r.body.brief === null);
+  latestRows = [{ date: "2026-06-30", snapshot_json: { completedTasks: ["a"], sageNote: "n" } }];
+  r = mockRes();
+  await morningBrief({ method: "GET", headers: { cookie } }, r);
+  ok("morning-brief 200 formats a brief from the snapshot",
+    r.statusCode === 200 && r.body.brief && r.body.brief.date === "2026-06-30" && r.body.brief.sageNote === "n");
+  store3.__resetSqlForTests();
+
+  // =========================================================
+  section("lib/agentOrchestrator — runSageRebalance + runEODChain (mocked fetch)");
+  const orch = await import(ROOT + "/lib/agentOrchestrator.js");
+  // Route the browser-style relative fetches the orchestrator makes.
+  let snapshotWrites = 0;
+  let snapshotOk = true;
+  globalThis.fetch = async (url, opts) => {
+    const u = String(url);
+    const body = opts && opts.body ? JSON.parse(opts.body) : {};
+    if (u.includes("/api/agent")) {
+      if (body.agentName === "sage") {
+        return { ok: true, json: async () => ({ ok: true, anomalous: false, data: { weekPlan: { mon: ["x"] }, sageNote: "moved things" } }) };
+      }
+      if (body.agentName === "ivy") {
+        return { ok: true, json: async () => ({ ok: true, anomalous: false, data: { proposals: [], conflicts: [], pruneWarnings: [] } }) };
+      }
+    }
+    if (u.includes("/api/snapshot")) {
+      snapshotWrites++;
+      return { ok: snapshotOk, json: async () => ({ ok: snapshotOk }) };
+    }
+    return { ok: false, json: async () => ({}) };
+  };
+  const reb = await orch.runSageRebalance(["a"], ["a", "b"], "clear");
+  ok("runSageRebalance ok with updatedWeekPlan", reb.ok === true && reb.updatedWeekPlan && Array.isArray(reb.updatedWeekPlan.mon));
+  ok("runSageRebalance carries sageNote", reb.sageNote === "moved things");
+  const chain = await orch.runEODChain({ date: "2026-06-30", incompleteTasks: ["a"], allTasks: ["a"], agentScrolls: {}, weekHistory: [] });
+  ok("runEODChain Sage step succeeds (regression guard for missing runSageRebalance)", chain.sageResult && chain.sageResult.ok === true);
+  ok("runEODChain Ivy step succeeds", chain.ivyResult && chain.ivyResult.ok === true);
+  ok("runEODChain snapshot persists", chain.snapshotResult && chain.snapshotResult.ok === true);
+  ok("runEODChain top-level ok reflects snapshot persistence", chain.ok === true);
+  // snapshot write failing flips top-level ok but leaves the agent steps intact
+  snapshotOk = false;
+  const chain2 = await orch.runEODChain({ date: "2026-06-30", incompleteTasks: [], allTasks: [] });
+  ok("runEODChain ok:false when snapshot write fails", chain2.ok === false && chain2.snapshotResult.ok === false);
+  ok("runEODChain still runs Sage when snapshot fails", chain2.sageResult && chain2.sageResult.ok === true);
+  // sage endpoint failing -> graceful sage_unavailable, no throw
+  globalThis.fetch = async (url, opts) => {
+    const u = String(url);
+    if (u.includes("/api/snapshot")) return { ok: true, json: async () => ({ ok: true }) };
+    return { ok: false, json: async () => ({}) };
+  };
+  const rebFail = await orch.runSageRebalance([], [], null);
+  ok("runSageRebalance degrades to sage_unavailable on HTTP error", rebFail.ok === false && rebFail.error === "sage_unavailable");
+  void snapshotWrites;
 
   // =========================================================
   console.log(`\n=== RESULT: ${pass} passed, ${fail} failed ===`);

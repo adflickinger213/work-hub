@@ -5,7 +5,7 @@
 // any day (this is the same job that's meant to run Friday) and caches it so
 // Monday serves from cache automatically.
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import WeeklyPlan from "./WeeklyPlan.jsx";
 
 const serif = "'Cormorant Garamond', Georgia, serif";
@@ -13,6 +13,14 @@ const sans = "'Jost', system-ui, sans-serif";
 
 export default function WeekPrepLauncher() {
   const [open, setOpen] = useState(false);
+
+  // Escape closes the planner overlay, matching the click-outside behavior.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   return (
     <>
@@ -44,6 +52,7 @@ export default function WeekPrepLauncher() {
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="week-prep-title"
           style={{
             position: "fixed",
             inset: 0,
@@ -68,7 +77,7 @@ export default function WeekPrepLauncher() {
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <div style={{ fontFamily: sans, fontSize: 12.5, fontStyle: "italic", color: "rgba(90,64,73,0.6)" }}>
+              <div id="week-prep-title" style={{ fontFamily: sans, fontSize: 12.5, fontStyle: "italic", color: "rgba(90,64,73,0.6)" }}>
                 Run this any day — it does Friday's prep and serves Monday from the saved plan.
               </div>
               <button

@@ -1,47 +1,31 @@
-// api/snapshot.js
-// EOD snapshot persistence. POST upserts a daily snapshot; GET returns the latest.
-// Requires a valid session (same HMAC cookie as api/agent) — snapshots hold
-// real work data and must not be readable or writable without logging in.
-// Never log snapshot_json.
+// api/snapshot.js — EOD snapshot persistence.
+//   POST  upserts the day's snapshot (keyed by ISO date).
+//   GET   returns the most recent snapshot.
 //
-// SETUP REQUIRED: Add POSTGRES_URL to Vercel project environment variables.
-// Vercel Dashboard → Project → Settings → Environment Variables → Add POSTGRES_URL.
-// Get the connection string from: Vercel Dashboard → Storage → your Postgres database → .env.local tab.
+// Session-gated like every other data endpoint: the browser calls it with the
+// httpOnly session cookie (credentials:"same-origin"), so only the logged-in
+// user can read or write snapshots. DB access is centralized in
+// lib/snapshotStore.js. Never log the snapshot payload.
+//
+// SETUP: add POSTGRES_URL to the Vercel project env (see lib/snapshotStore.js).
 
-import { sql } from "@vercel/postgres";
 import { requireSession } from "../lib/auth.js";
+import { getLatestSnapshot, upsertSnapshot } from "../lib/snapshotStore.js";
 
-const CREATE_TABLE = `
-  CREATE TABLE IF NOT EXISTS work_hub_snapshots (
-    date        TEXT        PRIMARY KEY,
-    snapshot_json JSONB     NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`;
-
-async function ensureTable() {
-  await sql.query(CREATE_TABLE);
-}
-
+// Accept only YYYY-MM-DD.
 function isValidISODate(value) {
-  if (typeof value !== "string") return false;
-  // Accept YYYY-MM-DD
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 export default async function handler(req, res) {
-  if (!requireSession(req)) {
-    res.writeHead(401, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: false, error: "not_authorized" }));
+  // Method + auth are checked BEFORE any DB work so unauthenticated or
+  // wrong-method requests never touch Postgres.
+  if (req.method !== "POST" && req.method !== "GET") {
+    res.status(405).json({ ok: false, error: "method_not_allowed" });
     return;
   }
-
-  try {
-    await ensureTable();
-  } catch (err) {
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: false, error: "db_init_failed" }));
+  if (!requireSession(req)) {
+    res.status(401).json({ ok: false, error: "not_authorized" });
     return;
   }
 
@@ -58,8 +42,7 @@ export default async function handler(req, res) {
     } = req.body || {};
 
     if (!isValidISODate(date)) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "invalid_date" }));
+      res.status(400).json({ ok: false, error: "invalid_date" });
       return;
     }
 
@@ -74,59 +57,19 @@ export default async function handler(req, res) {
     };
 
     try {
-      await sql.query(
-        `INSERT INTO work_hub_snapshots (date, snapshot_json, created_at, updated_at)
-         VALUES ($1, $2::jsonb, NOW(), NOW())
-         ON CONFLICT (date) DO UPDATE
-           SET snapshot_json = EXCLUDED.snapshot_json,
-               updated_at    = NOW()`,
-        [date, JSON.stringify(payload)]
-      );
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true }));
+      await upsertSnapshot(date, payload);
+      res.status(200).json({ ok: true });
     } catch (err) {
-      res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "save_failed" }));
+      res.status(500).json({ ok: false, error: "save_failed" });
     }
     return;
   }
 
-  if (req.method === "GET") {
-    try {
-      const result = await sql.query(
-        `SELECT date, snapshot_json
-         FROM work_hub_snapshots
-         ORDER BY date DESC
-         LIMIT 1`
-      );
-
-      const row = result.rows[0] || null;
-      const snapshot = row
-        ? { date: row.date, ...row.snapshot_json }
-        : null;
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true, snapshot }));
-    } catch (err) {
-      res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "fetch_failed" }));
-    }
-    return;
+  // GET — latest snapshot (or null).
+  try {
+    const snapshot = await getLatestSnapshot();
+    res.status(200).json({ ok: true, snapshot });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: "fetch_failed" });
   }
-
-  res.writeHead(405, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ ok: false, error: "method_not_allowed" }));
 }
-
-// -----------------------------------------------------------------------------
-// Manual smoke test (run after deploying to Vercel):
-//
-// GET — empty DB returns null snapshot:
-//   curl -X GET https://your-vercel-url.vercel.app/api/snapshot
-//   Expected: {"ok":true,"snapshot":null}
-//
-// GET — after first EOD completes returns the snapshot:
-//   curl -X GET https://your-vercel-url.vercel.app/api/snapshot
-//   Expected: {"ok":true,"snapshot":{"date":"2026-06-30","completedTasks":[...],...}}
-// -----------------------------------------------------------------------------
