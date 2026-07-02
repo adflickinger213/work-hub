@@ -1,6 +1,7 @@
 // api/snapshot.js
 // EOD snapshot persistence. POST upserts a daily snapshot; GET returns the latest.
-// No auth — snapshots are private by deployment (no multi-user data here).
+// Requires a valid session (same HMAC cookie as api/agent) — snapshots hold
+// real work data and must not be readable or writable without logging in.
 // Never log snapshot_json.
 //
 // SETUP REQUIRED: Add POSTGRES_URL to Vercel project environment variables.
@@ -8,6 +9,7 @@
 // Get the connection string from: Vercel Dashboard → Storage → your Postgres database → .env.local tab.
 
 import { sql } from "@vercel/postgres";
+import { requireSession } from "../lib/auth.js";
 
 const CREATE_TABLE = `
   CREATE TABLE IF NOT EXISTS work_hub_snapshots (
@@ -29,6 +31,12 @@ function isValidISODate(value) {
 }
 
 export default async function handler(req, res) {
+  if (!requireSession(req)) {
+    res.writeHead(401, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: "not_authorized" }));
+    return;
+  }
+
   try {
     await ensureTable();
   } catch (err) {
