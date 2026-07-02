@@ -141,3 +141,16 @@ under `src/components/`, `src/hooks/`, and `lib/`, wired at the Vite/Vercel laye
 (`main.jsx`, the `api/` routes, and the `window.__workhub` bridge). Deep
 in-artifact wiring of the new panels was intentionally left to a follow-up so
 the stable concatenated modules stay untouched.
+
+### EOD chain wired into the reflection flow (post-v1.0.0)
+- `runEODChain` (Sage rebalance → Ivy synthesis → Postgres snapshot) was a
+  correct, tested `lib/agentOrchestrator.js` module that nothing invoked. It is
+  now exposed on the `window.__workhub` bridge (`src/main.jsx`) and fired from
+  the end-of-day hard-close in `src/08-app-main.js`: when the user wraps the day,
+  the chain runs fire-and-forget from the built `todayData` (completed vs.
+  incomplete items, waiting-on, roadmap slots, capacity), never blocking the
+  close and staying silent on failure. A quiet "day wrapped ✓" indicator appears
+  for four seconds when it settles.
+- `test/smoke.mjs` asserts the bridge is exposed after boot
+  (`window.__workhub.runEODChain` is a function); the chain's own behavior is
+  already covered in `test/qa.mjs`.

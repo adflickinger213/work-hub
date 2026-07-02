@@ -61,7 +61,7 @@ function stopDev() { try { dev.kill("SIGTERM"); } catch {} }
 
 let browser;
 const pageErrors = [];
-const result = { rendered: false, launcher: false, overlay: false, generateBtn: false, gracefulError: false, healRedirect: false };
+const result = { rendered: false, launcher: false, overlay: false, generateBtn: false, gracefulError: false, healRedirect: false, eodBridge: false };
 try {
   try {
     browser = await chromium.launch({ args: ["--no-sandbox"] });
@@ -80,6 +80,12 @@ try {
   await page.waitForTimeout(2500);
 
   result.rendered = (await page.locator("#root").innerHTML()).length > 200;
+
+  // The EOD chain is wired into the artifact through the lib bridge. Assert the
+  // bundle can reach it (main.jsx must expose window.__workhub.runEODChain).
+  result.eodBridge = await page.evaluate(
+    () => typeof (window.__workhub && window.__workhub.runEODChain) === "function"
+  );
 
   const launcher = page.getByRole("button", { name: /this week/i });
   result.launcher = (await launcher.count()) > 0;
@@ -152,6 +158,7 @@ const checks = [
   ["Generate button present", result.generateBtn],
   ["graceful soft-error when API unreachable", result.gracefulError],
   ["stale session (401) self-heals to login screen", result.healRedirect],
+  ["EOD chain bridge exposed (window.__workhub.runEODChain)", result.eodBridge],
 ];
 let failed = 0;
 console.log("\n== browser smoke ==");
