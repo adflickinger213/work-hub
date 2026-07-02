@@ -3805,6 +3805,11 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [showEOD, setShowEOD] = useState(false);
+  // Quiet "day wrapped ✓" indicator, shown briefly after the EOD chain fires
+  // when the user hard-closes the day. Purely cosmetic; the chain runs whether
+  // or not this is visible.
+  const [dayWrapped, setDayWrapped] = useState(false);
+  const dayWrappedTimerRef = useRef(null);
   const [showRoadmapHistory, setShowRoadmapHistory] = useState(false);
   // Parked items dashboard — modal accessed via the "⛵ Parked (N)" pill in
   // the Overview header. Shows resurface dates + per-item actions.
@@ -4798,6 +4803,50 @@ export default function App() {
           setShowEOD(false);
           setScreen("checkin");
           setFocusItem(null);
+          // Fire the end-of-day chain: Sage re-spreads unfinished work across the
+          // rest of the week, Ivy synthesizes, and the day's snapshot persists.
+          // Fire-and-forget through the lib bridge — never blocks the close, and a
+          // failure stays silent (the chain isolates its own steps). A quiet
+          // "day wrapped ✓" appears when it settles. Only fires in the real app,
+          // where the bridge and /api routes exist.
+          try {
+            const runChain = (typeof window !== "undefined" && window.__workhub && typeof window.__workhub.runEODChain === "function")
+              ? window.__workhub.runEODChain
+              : null;
+            if (runChain) {
+              const items = Array.isArray(data.items) ? data.items : [];
+              const isActive = (it) => {
+                const s = (it.status || "todo").toLowerCase();
+                return s !== "done" && s !== "complete" && s !== "completed" && s !== "parked" && s !== "cancelled";
+              };
+              const toTask = (it) => ({
+                id: it.id,
+                name: it.title || it.name || "Untitled",
+                why: it.why || "",
+                status: it.status || "todo",
+              });
+              const doneToday = items.filter((it) => it.status === "done" && it.completedAt && it.completedAt >= startOfToday);
+              const activeItems = items.filter(isActive);
+              const todayData = {
+                date: new Date().toISOString().slice(0, 10),
+                completedTasks: doneToday.map((it) => it.title || it.name || "Untitled"),
+                incompleteTasks: activeItems.map(toTask),
+                allTasks: activeItems.map(toTask),
+                waitingOn: items.filter((it) => (it.status || "").toLowerCase() === "blocked").map((it) => it.title || it.name || "Untitled"),
+                slots: (roadmap && Array.isArray(roadmap.slots)) ? roadmap.slots : [],
+                capacityState: energy || null,
+                sageNote: null,
+                ivyNote: null,
+              };
+              Promise.resolve(runChain(todayData))
+                .then(() => {
+                  setDayWrapped(true);
+                  if (dayWrappedTimerRef.current) clearTimeout(dayWrappedTimerRef.current);
+                  dayWrappedTimerRef.current = setTimeout(() => { dayWrappedTimerRef.current = null; setDayWrapped(false); }, 4000);
+                })
+                .catch(() => { /* chain isolates its own failures; stay quiet */ });
+            }
+          } catch (e) { /* EOD chain is best-effort */ }
         }}
         onDismiss={() => {
           // Soft dismiss — keep eodRef.current set to today so the auto-check
@@ -4816,6 +4865,34 @@ export default function App() {
           }, 5 * 60 * 1000);
         }}
       />}
+      {dayWrapped && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            right: 20,
+            bottom: 20,
+            background: "linear-gradient(135deg, rgba(150,138,110,0.96), rgba(168,156,128,0.96))",
+            color: "#fdf6ee",
+            padding: "10px 16px",
+            borderRadius: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            zIndex: 95,
+            boxShadow: "0 8px 24px rgba(120,100,80,0.28)",
+            backdropFilter: "blur(10px)",
+            fontFamily: "'Cormorant Garamond', serif",
+            fontStyle: "italic",
+            fontSize: 16,
+            maxWidth: "calc(100vw - 40px)",
+          }}
+        >
+          <span aria-hidden="true">🌙</span>
+          <span>day wrapped ✓</span>
+        </div>
+      )}
       {showRoadmapHistory && (
         <RoadmapHistoryModal
           data={data}

@@ -9,6 +9,7 @@ import ReactDOM from "react-dom/client";
 import App from "../dist/work-hub.bundle.jsx";
 import WeekPrepLauncher from "./components/WeekPrepLauncher.jsx";
 import { migrateFromV4, saveStore, loadStore, STORAGE_KEYS } from "../lib/storage.js";
+import { runEODChain } from "../lib/agentOrchestrator.js";
 
 // Self-heal stale/invalid sessions. The login "unlocked" flag lives in
 // sessionStorage (UI state), but the real auth is the httpOnly cookie checked
@@ -70,6 +71,14 @@ if (typeof window !== "undefined") {
     } catch {
       return [];
     }
+  };
+
+  // The end-of-day chain (Sage rebalance -> Ivy synthesis -> Postgres snapshot).
+  // Lives in lib/ (ESM) so the concatenated artifact can't import it directly;
+  // the bundle reaches it through this bridge and calls it fire-and-forget when
+  // the day is wrapped. Runs in the browser against the app's own /api/* routes.
+  window.__workhub.runEODChain = function runEODChainBridge(todayData) {
+    return runEODChain(todayData || {});
   };
 
   window.__workhub.saveSession = function saveSession(session) {
