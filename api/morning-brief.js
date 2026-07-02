@@ -1,38 +1,29 @@
 // api/morning-brief.js
-// GET handler — returns the latest EOD snapshot formatted as a morning brief.
-// This reads the latest EOD snapshot written by Sprint B.
-// Works on first deploy after Postgres is configured.
-// Requires a valid session — the brief exposes the same private work data as
-// the snapshot itself.
+// GET — returns the latest EOD snapshot formatted as a morning brief.
+// Reads Postgres directly (via lib/morning-brief -> lib/snapshotStore); it does
+// NOT self-fetch /api/snapshot. Session-gated like the other data endpoints.
 //
-// curl -X GET https://your-vercel-url.vercel.app/api/morning-brief
-// Expected (empty DB): {"ok":true,"brief":null}
-// Expected (after EOD): {"ok":true,"brief":{"date":"2026-06-30","completedTasks":[...],...}}
+// Empty DB : { ok: true, brief: null }
+// After EOD: { ok: true, brief: { date, completedTasks, ..., isStale } }
 
 import { getMorningBrief } from "../lib/morning-brief.js";
 import { requireSession } from "../lib/auth.js";
 
 export default async function handler(req, res) {
-  if (!requireSession(req)) {
-    res.writeHead(401, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: false, error: "not_authorized" }));
+  // Method + auth are checked before any DB work.
+  if (req.method !== "GET") {
+    res.status(405).json({ ok: false, error: "method_not_allowed" });
     return;
   }
-
-  if (req.method !== "GET") {
-    res.writeHead(405, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: false, error: "method_not_allowed" }));
+  if (!requireSession(req)) {
+    res.status(401).json({ ok: false, error: "not_authorized" });
     return;
   }
 
   const result = await getMorningBrief();
-
   if (!result.ok) {
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: false, error: result.error }));
+    res.status(500).json({ ok: false, error: result.error });
     return;
   }
-
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ ok: true, brief: result.brief }));
+  res.status(200).json({ ok: true, brief: result.brief });
 }
