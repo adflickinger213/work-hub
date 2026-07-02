@@ -43,13 +43,19 @@ function setFakeNow(ms) {
 function restoreDate() { globalThis.Date = RealDate; }
 
 // ---- mock res ----
+// Supports both styles the handlers use: res.status().json() and
+// res.writeHead().end(jsonString).
 function mockRes() {
   return {
     statusCode: 200, body: null, headers: {},
     status(c) { this.statusCode = c; return this; },
+    writeHead(c, h) { this.statusCode = c; Object.assign(this.headers, h || {}); return this; },
     setHeader(k, v) { this.headers[k] = v; return this; },
     json(o) { this.body = o; return this; },
-    end() { return this; },
+    end(payload) {
+      if (typeof payload === "string") { try { this.body = JSON.parse(payload); } catch { this.body = payload; } }
+      return this;
+    },
   };
 }
 
@@ -195,8 +201,9 @@ async function main() {
   await login({ method: "POST", headers: { "x-forwarded-for": ipL }, body: { password: "hunter2" } }, r);
   ok("login success 200 ok:true", r.statusCode === 200 && r.body.ok === true);
   ok("login sets httpOnly Secure cookie", /HttpOnly/.test(r.headers["Set-Cookie"]) && /Secure/.test(r.headers["Set-Cookie"]));
-  ok("login returns token", typeof r.body.token === "string" && r.body.token.length > 0);
-  ok("login never leaks the password value", !JSON.stringify(r.body).includes("hunter2") || r.body.token.indexOf("hunter2") === -1);
+  ok("login does NOT echo the token in the body (cookie only)", r.body.token === undefined);
+  ok("login cookie carries a signed token", /wh_auth=\d+/.test(decodeURIComponent(r.headers["Set-Cookie"])));
+  ok("login never leaks the password value", !JSON.stringify(r.body).includes("hunter2"));
   // wrong password 10x -> lockout on 11th, from a NEW ip
   const ipBad = "10.0.0.99";
   for (let i = 0; i < 10; i++) { r = mockRes(); await login({ method: "POST", headers: { "x-forwarded-for": ipBad }, body: { password: "wrong" } }, r); }
@@ -215,11 +222,14 @@ async function main() {
   const goodToken = auth.signSession(SECRET, 3600);
   const cookie = `wh_auth=${encodeURIComponent(goodToken)}`;
 
-  // mock fetch (anthropic)
+  // mock fetch (anthropic) — captures the outgoing request body so tests can
+  // assert what actually got sent upstream.
   let nextAnthropic = { content: [{ type: "text", text: '{"weekPlan":{"mon":[]},"sageNote":"ok"}' }] };
   let fetchShouldThrow = false;
-  globalThis.fetch = async () => {
+  let lastFetchBody = null;
+  globalThis.fetch = async (url, opts) => {
     if (fetchShouldThrow) throw new Error("network down");
+    try { lastFetchBody = JSON.parse(opts?.body ?? "null"); } catch { lastFetchBody = null; }
     return { json: async () => nextAnthropic, status: 200 };
   };
 
@@ -265,6 +275,17 @@ async function main() {
   fetchShouldThrow = false;
   nextAnthropic = { content: [{ type: "text", text: "ok" }] };
 
+  // systemOverride: only the legacy rosie shim may replace the system prompt;
+  // every other agent must run its fixed server-side prompt.
+  r = mockRes();
+  await agent({ method: "POST", headers: { "x-forwarded-for": "11.0.0.8", cookie }, body: { agentName: "sage", instruction: "x", systemOverride: "HIJACKED PROMPT" } }, r);
+  ok("agent IGNORES systemOverride for non-rosie agents",
+    lastFetchBody && typeof lastFetchBody.system === "string" && !lastFetchBody.system.includes("HIJACKED"));
+  r = mockRes();
+  await agent({ method: "POST", headers: { "x-forwarded-for": "11.0.0.10", cookie }, body: { agentName: "rosie", instruction: "x", systemOverride: "legacy rosie system" } }, r);
+  ok("agent honors systemOverride for rosie (legacy shim)",
+    lastFetchBody && lastFetchBody.system === "legacy rosie system");
+
   // rate limit: 30 ok then 429, single IP
   const ipR = "11.9.9.9";
   let got429 = false, count200or4xx = 0;
@@ -301,6 +322,47 @@ async function main() {
   r = mockRes();
   await push({ method: "POST", headers: { cookie }, body: { endpoint: "https://e", keys: { p256dh: "a", auth: "b" } } }, r);
   ok("push 200 on valid subscription", r.statusCode === 200 && r.body.ok === true);
+  r = mockRes();
+  await push({ method: "POST", headers: { cookie }, body: { endpoint: "http://internal-host/steal", keys: { p256dh: "a", auth: "b" } } }, r);
+  ok("push 400 on non-https endpoint", r.statusCode === 400);
+
+  // =========================================================
+  section("api/snapshot — session gate");
+  const snapshot = (await import(ROOT + "/api/snapshot.js")).default;
+  r = mockRes();
+  await snapshot({ method: "GET", headers: {} }, r);
+  ok("snapshot GET 401 without session", r.statusCode === 401 && r.body.error === "not_authorized");
+  r = mockRes();
+  await snapshot({ method: "POST", headers: {}, body: { date: "2026-07-01" } }, r);
+  ok("snapshot POST 401 without session", r.statusCode === 401);
+  r = mockRes();
+  await snapshot({ method: "GET", headers: { cookie } }, r);
+  ok("snapshot authed request passes the gate", r.statusCode !== 401);
+
+  // =========================================================
+  section("api/eod-chain — session gate + validation");
+  const eod = (await import(ROOT + "/api/eod-chain.js")).default;
+  r = mockRes();
+  await eod({ method: "GET", headers: {} }, r);
+  ok("eod-chain 405 non-POST", r.statusCode === 405);
+  r = mockRes();
+  await eod({ method: "POST", headers: {} }, r);
+  ok("eod-chain 401 without session (explicit response, no hang)",
+    r.statusCode === 401 && r.body && r.body.error === "not_authorized");
+  r = mockRes();
+  await eod({ method: "POST", headers: { cookie } }, r); // body absent entirely
+  ok("eod-chain 400 on missing todayData (no crash on absent body)",
+    r.statusCode === 400 && r.body.error === "missing_todaydata");
+
+  // =========================================================
+  section("api/morning-brief — session gate");
+  const brief = (await import(ROOT + "/api/morning-brief.js")).default;
+  r = mockRes();
+  await brief({ method: "GET", headers: {} }, r);
+  ok("morning-brief 401 without session", r.statusCode === 401 && r.body.error === "not_authorized");
+  r = mockRes();
+  await brief({ method: "GET", headers: { cookie } }, r);
+  ok("morning-brief authed request passes the gate", r.statusCode !== 401);
 
   // =========================================================
   console.log(`\n=== RESULT: ${pass} passed, ${fail} failed ===`);

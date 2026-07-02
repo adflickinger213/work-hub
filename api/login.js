@@ -9,6 +9,7 @@
 // Brute-force protection: an IP is locked out after 10 failed attempts within
 // a rolling 24-hour window. Every failed attempt is logged with a timestamp.
 
+import crypto from "node:crypto";
 import { signSession, sessionCookie } from "../lib/auth.js";
 
 const SECLOG = "[work-hub][security]";
@@ -37,6 +38,15 @@ function recordFail(ip) {
   return fails.length;
 }
 
+// Constant-time password check. Hashing both sides first equalizes lengths so
+// neither the comparison time nor a length mismatch leaks anything.
+function passwordMatches(candidate, expected) {
+  if (typeof candidate !== "string") return false;
+  const a = crypto.createHash("sha256").update(candidate).digest();
+  const b = crypto.createHash("sha256").update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false });
@@ -61,16 +71,18 @@ export default async function handler(req, res) {
   }
 
   const { password } = req.body || {};
-  if (typeof password !== "string" || password !== expected) {
+  if (!passwordMatches(password, expected)) {
     const count = recordFail(ip);
     console.warn(`${SECLOG} failed login ip=${ip} attempt=${count} at ${new Date().toISOString()}`);
     res.status(401).json({ ok: false });
     return;
   }
 
-  // Success — clear any prior failures and issue the session.
+  // Success — clear any prior failures and issue the session. The token lives
+  // ONLY in the httpOnly cookie; it is never echoed in the body, so script
+  // running in the page (XSS) has nothing to steal.
   failures.delete(ip);
   const token = signSession(secret);
   res.setHeader("Set-Cookie", sessionCookie(token));
-  res.status(200).json({ ok: true, token });
+  res.status(200).json({ ok: true });
 }

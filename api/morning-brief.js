@@ -2,15 +2,23 @@
 // GET handler — returns the latest EOD snapshot formatted as a morning brief.
 // This reads the latest EOD snapshot written by Sprint B.
 // Works on first deploy after Postgres is configured.
-// No auth — brief is private by deployment.
+// Requires a valid session — the brief exposes the same private work data as
+// the snapshot itself.
 //
 // curl -X GET https://your-vercel-url.vercel.app/api/morning-brief
 // Expected (empty DB): {"ok":true,"brief":null}
 // Expected (after EOD): {"ok":true,"brief":{"date":"2026-06-30","completedTasks":[...],...}}
 
 import { getMorningBrief } from "../lib/morning-brief.js";
+import { requireSession } from "../lib/auth.js";
 
 export default async function handler(req, res) {
+  if (!requireSession(req)) {
+    res.writeHead(401, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: "not_authorized" }));
+    return;
+  }
+
   if (req.method !== "GET") {
     res.writeHead(405, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: "method_not_allowed" }));

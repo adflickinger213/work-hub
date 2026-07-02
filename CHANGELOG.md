@@ -116,6 +116,24 @@ agent system prompts in `prompts/`.
   valid and service worker registers cleanly.
 - Added this `CHANGELOG.md`; tagged `v1.0.0`.
 
+### Security audit — endpoint auth + login hardening (post-v1.0.0)
+- `api/snapshot.js` and `api/morning-brief.js` now require the HMAC session
+  cookie. Both previously answered without any auth, exposing read (and for
+  snapshot, write) access to the EOD work data to anyone with the URL.
+- `api/eod-chain.js` answers a failed session check with an explicit 401
+  instead of returning silently (the request used to hang with no response),
+  and no longer throws on a missing request body.
+- `api/agent.js` honors `systemOverride` only for the legacy rosie shim;
+  every other agent always runs its fixed server-side system prompt.
+- `api/login.js` compares passwords in constant time
+  (`crypto.timingSafeEqual` over sha256 digests) and no longer echoes the
+  session token in the response body — the httpOnly cookie is the only copy,
+  so page script (XSS) has nothing to steal.
+- `api/push-subscribe.js` only accepts `https:` push endpoints.
+- `test/qa.mjs` grew matching coverage: session gates on snapshot/eod-chain/
+  morning-brief, the systemOverride restriction (asserted against the captured
+  upstream request), token-not-in-body, and https-endpoint validation.
+
 #### Architecture note
 The eight `src/NN-*.js` modules are concatenated into one artifact bundle (the
 golden rule: no imports between them). The new agent features ship as ES modules

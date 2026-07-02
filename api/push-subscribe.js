@@ -11,12 +11,23 @@ import { requireSession } from "../lib/auth.js";
 // endpoint -> subscription object
 const subscriptions = new Map();
 
+// Real push endpoints are always https URLs issued by a browser push service.
+// Rejecting anything else keeps junk out of the store and blocks the server
+// from ever being pointed at internal/plaintext targets when sends land.
+function isHttpsUrl(value) {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function isValidSubscription(sub) {
   return (
     sub &&
     typeof sub === "object" &&
     typeof sub.endpoint === "string" &&
-    sub.endpoint.length > 0 &&
+    isHttpsUrl(sub.endpoint) &&
     sub.keys &&
     typeof sub.keys === "object" &&
     typeof sub.keys.p256dh === "string" &&

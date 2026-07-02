@@ -138,7 +138,14 @@ export default async function handler(req, res) {
     res.status(400).json({ ok: false, error: "unknown_agent", anomalous: false });
     return;
   }
-  const systemPrompt = (typeof systemOverride === "string" && systemOverride.trim()) ? systemOverride : SYSTEM_PROMPTS[agentName];
+  // systemOverride exists only for the legacy /api/rosie shim, whose callers
+  // build Rosie's system prompt client-side. Every other agent runs its fixed
+  // server-side prompt — an authed caller must not be able to swap it out.
+  const overrideAllowed = agentName === "rosie";
+  const systemPrompt =
+    overrideAllowed && typeof systemOverride === "string" && systemOverride.trim()
+      ? systemOverride
+      : SYSTEM_PROMPTS[agentName];
   const model = AGENT_MODELS[agentName];
   if (!systemPrompt || !model) {
     res.status(500).json({ ok: false, error: "agent_misconfigured", anomalous: false });
