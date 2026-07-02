@@ -4782,11 +4782,14 @@ export default function App() {
           if (roadmap) setRoadmap(applyReconciliation(roadmap, idx, choice));
         }}
         onClose={() => {
+          // Start-of-today epoch, in ms. Declared at the top of onClose so it's
+          // in scope for BOTH the carryover-detection block and the EOD chain's
+          // "completed today" filter below (each runs in its own try).
+          const startOfToday = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
           // Detect untouched items — todo/blocked items where lastUpdatedAt
           // is older than today's start. These become tomorrow's check-in
           // carryover suggestions ("you didn't touch these — pull forward?").
           try {
-            const startOfToday = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
             const carryoverIds = (data.items || [])
               .filter(item =>
                 item &&
